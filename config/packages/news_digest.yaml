@@ -1,0 +1,33 @@
+# --- Daily news digest -------------------------------------------------------
+# HA pulls from the Unraid nginx
+# container, so no long-lived access token is needed anywhere in this system.
+
+shell_command:
+  mirror_news_digest: >-
+    curl -fsS -o /config/www/news/index.html
+    http://<nas-ip>:8088/news/index.html
+
+rest:
+  - resource: http://<nas-ip>:8088/news/latest.json
+    scan_interval: 900
+    sensor:
+      - name: Daily News
+        unique_id: daily_news_digest
+        value_template: "{{ value_json.date_label }}"
+        json_attributes:
+          - tts
+          - tts_chunks
+          - date_label
+          - headline_count
+          - generated_at
+
+  - resource: http://<nas-ip>:8088/news/health.json
+    scan_interval: 900
+    sensor:
+      - name: Daily News Health
+        unique_id: daily_news_digest_health
+        value_template: "{{ value_json.status }}"
+        json_attributes:
+          - failure_count
+          - last_error
+          - last_success

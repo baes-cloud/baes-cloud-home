@@ -1,0 +1,124 @@
+# Template, group and 'change device type' helpers I created in the UI (exported for reference).
+template_helpers:
+- name: Robot vacuum active
+  type: binary_sensor
+  state: '{% set s = states(''vacuum.roborock_qrevo_master'') %}{% set e = states(''sensor.roborock_qrevo_master_last_clean_end'')
+    | as_datetime(none) %}{% set s2 = states(''vacuum.sl68'') %}{{ s in [''cleaning'',''returning'',''paused'',''error'']
+    or (s in [''docked'',''idle''] and e is not none and (now() - e).total_seconds() < 300) or s2 in [''cleaning'',''returning'',''paused'',''error'']
+    or (s2 in [''docked'',''idle''] and states.vacuum.sl68 is not none and (now() - states.vacuum.sl68.last_changed).total_seconds()
+    < 300) }}'
+  device_class: running
+- name: Sofa occupied (held)
+  type: binary_sensor
+  state: '{% set rmm = is_state(''binary_sensor.rmm_default_sofa_occupancy'',''on'') %}{% set lost = (states(''sensor.rmm_default_master'')
+    | int(0)) == 0 %}{% set still_there = is_state(''binary_sensor.club_apollo_r_pro_1_ld2412_presence'',''on'')
+    %}{{ rmm or (this.state == ''on'' and lost and still_there) }}'
+  device_class: occupancy
+light_groups:
+- name: 'Bar lights '
+  type: light
+  entities:
+  - light.bar_spotlights
+- name: 'Hue play '
+  type: light
+  entities:
+  - light.hue_play_2
+  - light.hue_play_3
+  - light.hue_play_1
+  - light.club_accent_chair_lights
+  - light.lasco_wifi_fairy_lights_2
+- name: Club Accent Lights
+  type: light
+  entities:
+  - light.couch
+  - light.hue_play
+  - light.club_accent_chair_lights
+  - light.couchh
+- name: Club led Group
+  type: light
+  entities:
+  - light.home_hue_omniglow_striplight_1
+  - light.home_hue_flux_strip_light_1
+- name: Club all
+  type: light
+  entities:
+  - light.club_art_pendants
+  - light.bar_spotlights
+  - light.home_hue_omniglow_striplight_1
+  - light.home_hue_flux_strip_light_1
+  - light.kitchen
+  - light.couch
+  - light.club_accent_lights
+- name: bedlamps
+  type: light
+  entities:
+  - light.bed_lamp_left
+  - light.bed_lamp_right
+  - light.bedroom_led_strip
+- name: bathlightsall
+  type: light
+  entities:
+  - light.bathroom_downlights
+  - light.bathroom_mirror_led
+- name: Office All
+  type: light
+  entities:
+  - light.office_lights
+  - light.hue_lightstrip_1
+  - light.wardrobes
+  - light.wardrobe
+  - light.send_nudes
+- name: office only
+  type: light
+  entities:
+  - light.office_lights
+  - light.hue_lightstrip_1
+- name: Wardrobes
+  type: light
+  entities:
+  - light.wardrobe
+  - light.send_nudes
+- name: Art Group
+  type: light
+  entities:
+  - light.club_art_pendants
+  - light.tv_art_lights
+- name: Hue lights
+  type: light
+  entities:
+  - light.home_hue_omniglow_striplight_1
+  - light.home_hue_flux_strip_light_1
+  - light.hue_play_1
+  - light.hue_play_2
+  - light.hue_play_3
+  - light.couch
+- name: kitchen group
+  type: light
+  entities:
+  - light.kitchen
+  - light.kitchen_art
+  - light.kitchen_kitchen_floor
+  - light.kitchen_console_candles
+- name: TV Art lights
+  type: light
+  entities:
+  - light.tv_art_lights_1
+  - light.tv_art_lights_2
+- name: bedroom_cupboard_light
+  type: light
+  entities:
+  - light.bedroom_cupboard_light_ueb
+  - light.kitchen_art
+switch_as_x:
+- name: '0xbc8d7efffe00e38f'
+  source: switch.kitchen_floor
+  as: light
+- name: '0x8c65a3fffe6e7752'
+  source: switch.kitchen_led
+  as: light
+- name: bedroom_led_strip
+  source: switch.bedroom_led_strip
+  as: light
+- name: Bedroom Heater
+  source: switch.bedroom_heater
+  as: fan

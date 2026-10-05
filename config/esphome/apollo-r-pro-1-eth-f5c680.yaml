@@ -1,0 +1,33 @@
+substitutions:
+  name: apollo-r-pro-1-eth-f5c680
+  friendly_name: Apollo R_PRO-1 f5c680
+
+packages:
+  ApolloAutomation.R-PRO-1-ETH: "github://ApolloAutomation/R_PRO-1/Integrations/ESPHome/R_PRO-1_ETH.yaml"
+
+esphome:
+  name: ${name}
+  name_add_mac_suffix: false
+  friendly_name: ${friendly_name}
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+
+# --- BLE proxy for SwitchBot Lock Pro (Ethernet host: no wifi/BLE contention) 2026-09-05 ---
+esp32_ble:
+  max_connections: 4
+
+esp32_ble_tracker:
+  scan_parameters:
+    interval: 320ms
+    window: 30ms
+    active: true
+
+bluetooth_proxy:
+  active: true
+  connection_slots: 4
+
+ethernet:
+  use_address: <device-ip>

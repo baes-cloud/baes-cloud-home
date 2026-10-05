@@ -1,0 +1,149 @@
+# Helpers I created in the UI (Settings -> Helpers), exported as YAML so a rebuild can
+# recreate them as a package. Add `ui_helpers: !include helpers/ui_helpers.yaml` style or paste into a package.
+input_boolean:
+  guest_mode:
+    name: Guest Mode
+    icon: mdi:account-group
+  away_mode:
+    name: Away Mode
+    icon: mdi:home-export-outline
+  override_couch_light:
+    name: Override Couch Light
+    icon: mdi:hand-back-left
+  override_accent_lights:
+    name: Override Accent Lights
+    icon: mdi:hand-back-left
+  override_art_pendants:
+    name: Override Art Pendants
+    icon: mdi:hand-back-left
+  override_club_leds:
+    name: Override Club Leds
+    icon: mdi:hand-back-left
+  departure_board_wake:
+    name: Departure board wake
+    icon: mdi:monitor-shimmer
+  auto_stay:
+    name: Auto-stay
+    icon: mdi:party-popper
+  club_lights:
+    name: Club Lights
+    icon: mdi:party-popper
+  tv_wash:
+    name: TV Wash
+    icon: mdi:television-ambient-light
+  washer_done:
+    name: Washer done
+    icon: mdi:washing-machine-alert
+  intruder_alert_active:
+    name: Intruder alert active
+    icon: mdi:shield-alert
+  music_follows_me:
+    name: Music follows me
+    icon: mdi:account-music
+input_number:
+  club_lights_brightness:
+    name: Club Lights Brightness
+    icon: mdi:brightness-6
+    min: 10.0
+    max: 100.0
+    step: 5.0
+    mode: slider
+    unit_of_measurement: '%'
+    initial: 70.0
+  club_lights_level_hue_play_1:
+    name: Club Lights Level Hue Play 1
+    icon: mdi:lamp
+    min: 0.0
+    max: 100.0
+    step: 5.0
+    mode: slider
+    unit_of_measurement: '%'
+    initial: 100.0
+  club_lights_level_hue_play_2:
+    name: Club Lights Level Hue play 2
+    icon: mdi:lamp
+    min: 0.0
+    max: 100.0
+    step: 5.0
+    mode: slider
+    unit_of_measurement: '%'
+    initial: 100.0
+  club_lights_level_hue_play_3:
+    name: Club Lights Level Hue play 3
+    icon: mdi:lamp
+    min: 0.0
+    max: 100.0
+    step: 5.0
+    mode: slider
+    unit_of_measurement: '%'
+    initial: 100.0
+  club_lights_level_hue_flux_strip_light_1:
+    name: Club Lights Level Hue Flux strip light 1
+    icon: mdi:led-strip-variant
+    min: 0.0
+    max: 100.0
+    step: 5.0
+    mode: slider
+    unit_of_measurement: '%'
+    initial: 40.0
+  club_lights_level_hue_omniglow_striplight_1:
+    name: Club Lights Level Hue OmniGlow striplight 1
+    icon: mdi:led-strip-variant
+    min: 0.0
+    max: 100.0
+    step: 5.0
+    mode: slider
+    unit_of_measurement: '%'
+    initial: 40.0
+  club_lights_speed:
+    name: Club Lights Speed
+    icon: mdi:speedometer
+    min: 25.0
+    max: 300.0
+    step: 25.0
+    mode: slider
+    unit_of_measurement: '%'
+    initial: 100.0
+  club_lights_intensity:
+    name: Club Lights Intensity
+    icon: mdi:sine-wave
+    min: 0.0
+    max: 200.0
+    step: 10.0
+    mode: slider
+    unit_of_measurement: '%'
+    initial: 100.0
+  tv_wash_brightness:
+    name: TV Wash Brightness
+    icon: mdi:brightness-6
+    min: 5.0
+    max: 100.0
+    step: 5.0
+    mode: slider
+    unit_of_measurement: '%'
+    initial: 60.0
+input_select:
+  club_lights_palette:
+    name: Club Lights Palette
+    icon: mdi:palette
+    options:
+    - Neon Club
+    - Teal Lagoon
+    - Miami Night
+    - Pink Couch
+    - Aurora
+    - Deep Ocean
+    - Rave
+  club_lights_mode:
+    name: Club Lights Mode
+    icon: mdi:lightning-bolt
+    options:
+    - Pulse
+    - Chase
+    - Rolling
+    - Wave
+    - Strobe
+    - Club Strobe
+    - Chill
+counter: {}
+timer: {}

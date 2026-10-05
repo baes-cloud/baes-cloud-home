@@ -1,0 +1,88 @@
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+# Feature config lives in packages/ (one file per feature, loaded automatically):
+#   front_door.yaml   lock helpers + combined door-open sensor
+#   presence.yaml     binary_sensor.bae_home (GPS + BLE must agree)
+#   news_digest.yaml  daily news digest pulled from the Unraid nginx container
+#   work_alarms.yaml  calendar-driven Sonos work alarms + Club night sound
+#   rotary_lists.yaml lists for the rotary displays
+homeassistant:
+  packages: !include_dir_named packages
+
+# Zigbee runs on the external Zigbee2MQTT at <mqtt-host>, so there is no zha: block.
+
+# --- Reverse proxy on baelap (added 2026-09-20) --------------------------------
+# ha-proxy (Caddy, <proxy-ip>:8123) gives one permanent address that follows
+# whichever HA is live, so failover needs no DNS change. HA must trust it, or it
+# rejects the forwarded header with 400 and would treat every client as baelap.
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - <proxy-ip>
+  # Ban a client IP after 5 failed logins (HA is reachable via Cloudflare and Nabu Casa).
+  # To unban: remove its line from /config/ip_bans.yaml and restart.
+  login_attempts_threshold: 5
+
+# pysmartthings warns about every unknown Samsung capability at each start; keep its errors only.
+logger:
+  default: warning
+  logs:
+    pysmartthings: error
+    # Startup summary (stage timings, slowest integrations, "initialized in Ns"): a few lines per boot.
+    homeassistant.bootstrap: info
+
+# --- Recorder ----------------------------------------------------------------
+# Excluded entities stay fully live (automations, RMM, radar card); only their
+# history is not written. Measured 2026-10-04: these were ~85% of all writes.
+recorder:
+  purge_keep_days: 10
+
+  exclude:
+    entity_globs:
+      # per-target geometry from every LD2450 (Apollo + both trackers).
+      # These change several times a second while anyone is moving.
+      - sensor.*target_*_x
+      - sensor.*target_*_y
+      - sensor.*target_*_z
+      - sensor.*target_*_speed
+      - sensor.*target_*_angle
+      - sensor.*target_*_distance
+      - sensor.*target_*_resolution
+      - sensor.*target_*_direction
+      # Added 2026-10-04: Bermuda BLE distance/RSSI streams were ~53% of all writes.
+      # Live values still drive device_tracker.bermuda_*; only their history is dropped.
+      - sensor.bermuda_*distance*
+      - sensor.bermuda_*rssi*
+      - sensor.bermuda_global_*
+      # Apollo LD2412 raw distance/energy (~31% of writes). Live state still feeds
+      # the RMM LD2412 automations.
+      - sensor.*ld2412_*distance
+      - sensor.*ld2412_*energy
+
+    entities:
+      # RMM's fused master count also updates constantly.
+      - sensor.rmm_default_master
+      # Club TV Cast entity rewrites itself several times a second while anything plays
+      # (playback position): ~137k rows/day. Automations and remotes use its live state only.
+      - media_player.the_club_tv
+
+# ---------------------------------------------------------------------------
+# DELIBERATELY still recorded (low volume, genuinely useful history):
+#   binary_sensor.rmm_default_*_occupancy   <- zone presence, ~109 rows/2h
+#   sensor.rmm_default_*_count              <- per-zone counts
+#   sensor.*_target_count                   <- ~61 rows/2h
+#   sensor.*_zone_*_target_count            <- drives your kitchen/couch rules
+#   binary_sensor.*_moving_target           <- drives the sofa sleep detection
+#
+# Keeping these means you can still chart occupancy per room and debug why an
+# automation fired -- which is the history you actually want.
+# ---------------------------------------------------------------------------

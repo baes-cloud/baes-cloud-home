@@ -1,0 +1,39 @@
+# Front door: lock helpers + combined door-open sensor (moved out of configuration.yaml 2026-10-05).
+# Gates the front-door auto-lock and Sonos announcement off during an NFC tag unlock.
+input_boolean:
+  front_door_tag_grace:
+    name: Front door tag grace
+    icon: mdi:nfc-variant
+  front_door_keep_unlocked:
+    name: Front door keep unlocked
+    icon: mdi:lock-open-alert
+  front_door_quiet_lock:
+    name: Front door quiet lock
+    icon: mdi:volume-off
+  front_door_unlock_hold:
+    name: Front door unlock hold
+    icon: mdi:timer-lock-open
+
+# --- Front door: combined door-open sensor -----------------------------------
+# The door has two independent open sensors: the Zigbee contact sensor on the
+# frame, and the SwitchBot Lock Pro's own built-in door sensor. Treat the door
+# as OPEN if either reports open, and only fall back to the blind timer when
+# BOTH are dead. The lock automations reference this entity, not the raw pair.
+template:
+  - binary_sensor:
+      - name: Front door open
+        unique_id: front_door_open_combined
+        device_class: door
+        availability: >-
+          {{ states('binary_sensor.ikea_of_sweden_parasoll_door_window_sensor') in ['on', 'off']
+             or states('binary_sensor.lock_pro_0fa0') in ['on', 'off'] }}
+        state: >-
+          {{ is_state('binary_sensor.ikea_of_sweden_parasoll_door_window_sensor', 'on')
+             or is_state('binary_sensor.lock_pro_0fa0', 'on') }}
+        attributes:
+          contact_sensor: "{{ states('binary_sensor.ikea_of_sweden_parasoll_door_window_sensor') }}"
+          lock_sensor: "{{ states('binary_sensor.lock_pro_0fa0') }}"
+          disagree: >-
+            {%- set a = states('binary_sensor.ikea_of_sweden_parasoll_door_window_sensor') -%}
+            {%- set b = states('binary_sensor.lock_pro_0fa0') -%}
+            {{- 'yes' if (a in ['on', 'off'] and b in ['on', 'off'] and a != b) else 'no' -}}
