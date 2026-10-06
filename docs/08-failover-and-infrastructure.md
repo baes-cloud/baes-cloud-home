@@ -10,7 +10,7 @@ flowchart TB
   end
   Clients --> Proxy[Caddy proxy<br/>one fixed address,<br/>routes to whichever HA answers]
   Proxy --> Pi5[Pi 5 · Home Assistant OS<br/>primary]
-  Proxy -.-> Pi400[Pi 400 · Home Assistant container<br/>standby, stopped until needed<br/>+ the wall board kiosk]
+  Proxy -.-> Pi400[Pi 400 · Home Assistant container<br/>standby, created only when needed<br/>+ the wall board kiosk]
   WD[Watchdog on an old laptop<br/>checks the Pi 5 every 10 s] -->|down 5 min| Pi400
   WD -->|healthy 90 s| Pi400
   WD <-->|heartbeat, events, hold switch| MQTT[(Mosquitto)]
@@ -23,7 +23,9 @@ flowchart TB
 - A small watchdog (a bash script under systemd) on the old laptop checks the Pi 5 every 10 s.
 - After **5 minutes** down it SSHes to the Pi 400 with a key that can run *only* the failover
   control script, from *only* the laptop. The Pi 400 then checks **independently** that it can't
-  reach the Pi 5 before starting Home Assistant. That two-sided check prevents a split brain.
+  reach the Pi 5 before starting Home Assistant (`docker compose up -d` from an image already on
+  the Pi, pinned to the Pi 5's version, so no container sits around between failovers). That
+  two-sided check prevents a split brain.
 - The Caddy proxy (`lb_policy first`) automatically routes to whichever instance answers, so no
   phone, remote or DNS change is needed.
 - When the Pi 5 has been healthy for **90 s**, the standby is shut down again. Demotion is never
