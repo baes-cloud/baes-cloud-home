@@ -5,6 +5,8 @@
 > **About me:** a hobbyist with no coding background, running Home Assistant for about five years.
 > I used to enjoy spending hours a week tweaking it. Now I enjoy starting from the dream end state,
 > where anything is possible, and Claude helps me turn those ideas into a simple, functional reality.
+> Plenty of this I could set up myself, and did, like Radar Map Manager and its room zones. But the
+> complex automations those zones trigger would have taken me weeks or longer without Claude.
 >
 > I worried I'd stop learning and lose the skills I had. The opposite happened: using Claude code
 > has taught me about languages and programming methods I never knew existed, helped me understand
