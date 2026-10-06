@@ -11,8 +11,8 @@
 > how everything does and can work together, handles debugging effortlessly, while keeping an eye on
 > privacy, security, and flagging any risks.
 
-My [Home Assistant](https://www.home-assistant.io) setup: one apartment, about 180 devices from a
-dozen brands, cheap sensors I built myself, and tech that was gathering dust. All of it is tuned
+My [Home Assistant](https://www.home-assistant.io) setup: one apartment, about 85 devices from 25
+brands, cheap sensors I built myself, and tech that was gathering dust. All of it is tuned
 so the home works around me and I hardly ever have to touch it. Most of what it does is based on 
 what I want/have asked for + all of the sensor data my home assistant has recorded about me and 
 how the home is use and interacted with. 
@@ -37,9 +37,10 @@ while I'm out, and my alarm reads my work roster so I never set one, or wake up 
 based on where I am working that day.
 
 Two robot vacuums share the floors. The main one (a Roborock) does a full clean once I've been gone
-ten minutes. My old, cheap one (a Lubluelu SL68 that still works fine) then does a final quick sweep
-if the main one finished without a problem, or does a full clean if the Roborock gets stuck behind
-a closed door, or caught on something I left on the floor.
+ten minutes, and heads back to its dock when the house thinks I'm about to get home (within 1 km and
+heading this way). My old, cheap one (a Lubluelu SL68 that still works fine) then does a final quick
+sweep if the main one finished without a problem, or does a full clean if the Roborock gets stuck
+behind a closed door, or caught on something I left on the floor.
 
 When friends are over, **party mode** pauses the automations that would be annoying or make no
 sense with a crowd: lights reacting to people walking past, scenes changing, the door locking itself

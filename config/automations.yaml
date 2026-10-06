@@ -3588,7 +3588,8 @@
     Intruder + welcome-home ignore radar while binary_sensor.roborock_active is on.
     If the Roborock finishes cleanly while you're still out, script.sl68_followup_clean
     runs the SL68 (smart clean, then a second one if the first went fine) before the
-    radar automations are resumed.
+    radar automations are resumed. Skipped if the robots were sent home because I'm
+    nearly home (input_boolean.robots_sent_home).
   triggers:
   - trigger: state
     entity_id: input_boolean.away_mode
@@ -3690,14 +3691,15 @@
               group: roborock
               channel: Roborock
       - if:
-        - alias: Roborock finished cleanly, and the SL68 is docked, problem-free and
-            charged
+        - alias: Roborock finished cleanly, the SL68 is docked, problem-free and charged,
+            and I'm not on my way home
           condition: template
           value_template: "{{ is_state('sensor.roborock_qrevo_master_vacuum_error',
             'none')\n   and is_state('sensor.roborock_qrevo_master_dock_dock_error',
             'ok')\n   and states('sensor.roborock_qrevo_master_cleaning_area') | float(0)
             > 1\n   and is_state('vacuum.sl68', 'docked')\n   and is_state('binary_sensor.sl68_problem',
-            'off')\n   and states('sensor.sl68_battery') | int(0) >= 50 }}"
+            'off')\n   and states('sensor.sl68_battery') | int(0) >= 50\n   and is_state('input_boolean.robots_sent_home',
+            'off') }}"
         then:
         - alias: SL68 follow-up smart cleans (that script resumes the radar automations
             when done)
@@ -3755,6 +3757,189 @@
                 - action: RR_HOME
                   title: Send to dock
   mode: queued
+- id: '1791000000001'
+  alias: Robots · dock when I'm nearly home
+  description: 'While away mode is on and I''m within 1 km of home and heading towards
+    it (Proximity: sensor.home_bae_distance / direction_of_travel), send whichever
+    robot is out back to its dock and stop the SL68 follow-up/backup cleans. Sets
+    input_boolean.robots_sent_home so the SL68 doesn''t start after the Roborock docks
+    (clears whenever away mode changes). Added by Claude 2026-10-06.'
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.home_bae_distance
+    below: 1000
+    id: near
+  - trigger: state
+    entity_id: sensor.home_bae_direction_of_travel
+    to: towards
+    id: near
+  - trigger: state
+    entity_id: input_boolean.away_mode
+    id: reset
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: reset
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.robots_sent_home
+    - conditions:
+      - condition: trigger
+        id: near
+      - condition: state
+        entity_id: input_boolean.away_mode
+        state: 'on'
+      - condition: state
+        entity_id: input_boolean.robots_sent_home
+        state: 'off'
+      - condition: numeric_state
+        entity_id: sensor.home_bae_distance
+        below: 1000
+      - condition: state
+        entity_id: sensor.home_bae_direction_of_travel
+        state: towards
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.robots_sent_home
+      - alias: Stop the SL68 follow-up/backup chain so it does not start another run
+        action: script.turn_off
+        target:
+          entity_id:
+          - script.sl68_followup_clean
+          - script.sl68_smart_clean_once
+      - variables:
+          out: '{{ [''vacuum.roborock_qrevo_master'', ''vacuum.sl68''] | select(''is_state'',
+            [''cleaning'', ''paused'', ''returning'']) | list }}'
+      - if:
+        - condition: template
+          value_template: '{{ out | count > 0 }}'
+        then:
+        - action: vacuum.return_to_base
+          target:
+            entity_id: '{{ out }}'
+        - action: script.turn_on
+          target:
+            entity_id: script.notify_bae
+          data:
+            variables:
+              title: Robots heading home
+              message: Looks like you're nearly home, so {{ out | map('state_attr',
+                'friendly_name') | join(' and ') }} {{ 'is' if out | count == 1 else
+                'are' }} going back to the dock.
+              data:
+                tag: roborock_away
+                group: roborock
+                channel: Roborock
+  mode: queued
+  max: 5
+- id: '1791000000002'
+  alias: SL68 · backup when the Roborock gets stuck
+  description: If the Roborock stops with an error for 3 minutes in the middle of
+    an away-mode clean (stuck, trapped, shut in a room, can't get back to the dock),
+    send the SL68 out for one smart clean as a backup and tell me how it went. The
+    radar automations stay paused until I get home, because the stuck Roborock is
+    still out. Added by Claude 2026-10-06.
+  triggers:
+  - trigger: state
+    entity_id: vacuum.roborock_qrevo_master
+    to: error
+    for: 00:03:00
+  - trigger: state
+    entity_id: sensor.roborock_qrevo_master_vacuum_error
+    to:
+    - lidar_blocked
+    - bumper_stuck
+    - wheels_suspended
+    - cliff_sensor_error
+    - main_brush_jammed
+    - side_brush_jammed
+    - wheels_jammed
+    - robot_trapped
+    - robot_tilted
+    - side_brush_error
+    - fan_error
+    - vertical_bumper_pressed
+    - dock_locator_error
+    - return_to_dock_fail
+    - nogo_zone_detected
+    - vibrarise_jammed
+    - robot_on_carpet
+    - invisible_wall_detected
+    - cannot_cross_carpet
+    - compass_error
+    - optical_flow_sensor_dirt
+    - wall_sensor_dirty
+    - filter_blocked
+    - no_dustbin
+    - internal_error
+    for: 00:03:00
+  conditions:
+  - alias: Stopped away from the dock
+    condition: state
+    entity_id: vacuum.roborock_qrevo_master
+    state:
+    - error
+    - idle
+    - paused
+  - condition: state
+    entity_id: input_boolean.away_mode
+    state: 'on'
+  - condition: state
+    entity_id: input_boolean.auto_stay
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.robots_sent_home
+    state: 'off'
+  - alias: An away-mode clean is running (Roborock · clean while away paused the radar
+      automations)
+    condition: state
+    entity_id: automation.rmm_kitchen_presence_light
+    state: 'off'
+  - condition: state
+    entity_id:
+    - script.sl68_followup_clean
+    - script.sl68_smart_clean_once
+    state: 'off'
+  actions:
+  - variables:
+      err: '{{ states(''sensor.roborock_qrevo_master_vacuum_error'') | replace(''_'',
+        '' '') }}'
+      room: '{{ states(''sensor.roborock_qrevo_master_current_room'') }}'
+  - action: script.turn_on
+    target:
+      entity_id: script.notify_bae
+    data:
+      variables:
+        title: Roborock is stuck
+        message: It reports {{ err }}{{ ' in the ' ~ room if room not in ['unknown',
+          'unavailable', ''] else '' }}, so the SL68 is going out as a backup.
+        data:
+          tag: roborock_stuck
+          group: roborock
+          channel: Roborock
+  - action: script.sl68_smart_clean_once
+    data:
+      go: true
+    response_variable: sl68
+  - action: script.turn_on
+    target:
+      entity_id: script.notify_bae
+    data:
+      variables:
+        title: SL68 backup clean
+        message: '{% if sl68.ok %}Done: {{ sl68.area }} m² in {{ sl68.minutes }} min.
+          The Roborock still needs rescuing.{% else %}It didn''t finish: {{ sl68.reason
+          }}.{% endif %}'
+        data:
+          tag: roborock_stuck
+          group: roborock
+          channel: Roborock
+  mode: single
+  max_exceeded: silent
 - id: '1790500000004'
   alias: Washer · done
   description: Washer finished → Washer done flag on (shows on the remotes), push

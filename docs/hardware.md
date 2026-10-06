@@ -17,7 +17,7 @@ A mix of a few big brands, cheap DIY parts and hand-me-downs. Nothing has to be 
 | **Lights** | Clipsal Wiser switches/dimmers (Zigbee), IKEA TRADFRI, Philips Hue (Play, Lightstrip, OmniGlow), WiZ, Govee (Matter), Tuya/Smart Life, IKEA TRETAKT plugs, USB light switches | |
 | **Speakers** | Sonos Beam + 2× Play:3, plus bedroom, bathroom and office speakers | |
 | **TVs** | Samsung The Serif (55" + 43") + Google TV Streamer | |
-| **Robots** | Roborock Qrevo Master + Lubluelu SL68 (local via tuya-local) | |
+| **Robots** | Roborock Qrevo Master + Lubluelu SL68 (local via tuya-local) | The SL68 is my old, cheap one: the backup and a final sweep |
 | **Appliances** | Samsung washer (SmartThings), Sensibo (aircon) | |
 | **Camera** | Nest (attic) | Only switches on while I'm away |
 | **Controls** | 2× Sanytron Astrion HA100 remotes running my own app (the one remote), BæoRemote music knob + hub knob (DIY ESP32-S3 round displays), ESP32-S3-Box-3 (voice), IKEA BILRESA buttons | |

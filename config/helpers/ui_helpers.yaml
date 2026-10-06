@@ -25,6 +25,9 @@ input_boolean:
   auto_stay:
     name: Auto-stay
     icon: mdi:party-popper
+  robots_sent_home:
+    name: Robots sent home
+    icon: mdi:robot-vacuum-alert
   club_lights:
     name: Club Lights
     icon: mdi:party-popper
