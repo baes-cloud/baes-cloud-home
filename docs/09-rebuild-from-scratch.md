@@ -76,7 +76,8 @@ They're exported in [`config/helpers/`](../config/helpers/).
   create the phone's Bermuda tracker.
 - **Voice:** an ESP32-S3-Box-3 or any satellite, plus the "Piks" pipeline (openWakeWord custom model,
   HA Cloud speech, local intents first, Gemini as the conversation agent).
-- **Remotes:** [astrion-dashboard](https://github.com/baes-cloud/astrion-dashboard).
+- **The one remote:** [astrion-dashboard](https://github.com/baes-cloud/astrion-dashboard).
+- **Music knob:** [baeoremote](https://github.com/baes-cloud/baeoremote) (the lounge knob's firmware; its HA package is `rotary_lists.yaml`).
 - **Wall board + standby:** [rpi-departure-board](https://github.com/baes-cloud/rpi-departure-board),
   then the standby HA container on the same Pi 400 ([failover](08-failover-and-infrastructure.md)).
 

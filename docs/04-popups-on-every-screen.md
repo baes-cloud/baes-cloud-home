@@ -1,7 +1,9 @@
-# 4 · Popups on every screen (and no dashboards)
+# 4 · One remote, and popups on every screen
 
-I don't open dashboards. Instead, anything that needs my attention **appears on whatever
-screen is near me**, and disappears everywhere once it's dealt with.
+I no longer use "dashboards". I used to be heavily dashboard-focused, spending hours a week
+tweaking highly custom dashboards that ran on screens in every room. Now there's **one remote**
+for everything, and anything that needs my attention **appears on whatever screen is near me**,
+then disappears everywhere once it's dealt with.
 
 **The pattern:** an automation sets one piece of state in Home Assistant, such as
 `input_boolean.washer_done`, `input_boolean.intruder_alert_active`, the lock being unlocked,
@@ -14,10 +16,16 @@ state, so the popup vanishes from all of them at once.
 | <img src="../images/astrion/alert-washer.png" width="230"> | <img src="../images/rotary/10-alarm-ringing.png" width="230"> | <img src="../images/board/screenshot-night.png" width="320"> |
 
 ## The screens
-- **Remotes:** two Sanytron Astrion HA100 remotes (Android, with a screen) running my own app,
-  [astrion-dashboard](https://github.com/baes-cloud/astrion-dashboard). Alarm and warning
-  popups wake the screen, info popups wait to be seen.
-- **Two round rotary knobs** (ESP32-S3, LVGL): [esp-rotary-display-ha-hub](https://github.com/baes-cloud/esp-rotary-display-ha-hub).
+- **The one remote:** an app I designed from the ground up
+  ([astrion-dashboard](https://github.com/baes-cloud/astrion-dashboard)), running on affordable
+  Sanytron Astrion HA100 Android remotes. It controls the whole home by **touch screen, physical
+  buttons or voice** ("hey Pikachu"): TV, Plex, Sonos, lights, scenes, the lock, the robots and alerts.
+  Alarm and warning popups wake the screen, info popups wait to be seen.
+- **BæoRemote** ([baeoremote](https://github.com/baes-cloud/baeoremote)): a round ESP32-S3 knob
+  by the couch for easy media-only control, inspired by B&O's Beosound Essence remote. Turn for volume,
+  press to play/pause, hold for playlists, plus a night clock.
+- **The hub knob** ([esp-rotary-display-ha-hub](https://github.com/baes-cloud/esp-rotary-display-ha-hub)):
+  a second round knob in the bedroom for lights, scenes, climate, blinds and media.
 - **Kitchen wall board:** split-flap style departures board on an old Raspberry Pi 400, which
   is also the standby HA: [rpi-departure-board](https://github.com/baes-cloud/rpi-departure-board).
 - **Phone:** actionable notifications.

@@ -14,6 +14,17 @@
 - **Club Lights:** when the lounge plays from Music Assistant and party lights are on, a
   beat-sync player on my mini-PC joins the group and drives the lights.
 
+## BæoRemote: a B&O-style music knob
+[BæoRemote](https://github.com/baes-cloud/baeoremote) is a round ESP32-S3 knob display I built for
+easy, media-only control, inspired by B&O's Beosound Essence remote. Turn for volume (hold and turn
+to scrub), press, double-press and triple-press for play/pause, next and previous, and hold for
+playlists, favourites and albums. When the lounge Sonos is on the TV input it shows the Plex or
+Google TV poster instead. After 3 minutes idle it fades to a dim amber night clock.
+
+| Now playing | Volume | Playlists | Night |
+|---|---|---|---|
+| <img src="../images/baeoremote/now-playing.png" width="180"> | <img src="../images/baeoremote/volume.png" width="180"> | <img src="../images/baeoremote/playlists.png" width="180"> | <img src="../images/baeoremote/night.png" width="180"> |
+
 | Remote: TV + Plex | Remote: Sonos | Knob: media | Knob: speakers |
 |---|---|---|---|
 | <img src="../images/astrion/tv-plex.png" width="200"> | <img src="../images/astrion/sonos-player.png" width="200"> | <img src="../images/rotary/06-media.png" width="200"> | <img src="../images/rotary/08-speakers.png" width="200"> |

@@ -1,44 +1,55 @@
-# A home that mostly runs itself
+# baes-cloud-home
 
-My [Home Assistant](https://www.home-assistant.io) setup: one apartment, about 180 devices
-from a dozen brands, plus cheap DIY sensors and hand-me-down hardware. It's all tuned so I
-hardly ever have to touch anything.
+**One bae's automated domain: radar tracking, calendar alarms, and failover Pi resilience.**
+
+My [Home Assistant](https://www.home-assistant.io) setup: one apartment, about 180 devices from a
+dozen brands, cheap sensors I built myself, and tech that was gathering dust. All of it is tuned
+so the home works around me and I hardly ever have to touch it.
 
 ![How it fits together](images/overview.svg)
 
 ## In plain English
 
 **Home Assistant is free, open-source software** that runs on a small computer in your home and
-talks to almost any smart device from any brand. Instead of a dozen apps that don't talk to each
-other, there's one "brain" that sees everything (lights, speakers, TV, door lock, robot vacuums,
-washing machine) and makes it all work together around you.
+talks to almost any smart device, from any brand. Instead of a dozen apps that don't talk to each
+other, one "brain" sees everything (lights, speakers, TV, door lock, robot vacuums, washing
+machine) and makes it all work together.
 
-What makes mine feel like magic is **presence**. Radar sensors that cost about $15 each know which
-room I'm in, even when I'm sitting perfectly still, and my phone's location plus Bluetooth tells the
-house when I've left or come home. So the lights follow me, the music follows me, the door locks
-behind me and opens when I get back, the robot vacuums clean while I'm out, and my alarm reads my
-work roster so I never set one.
+What makes mine feel like magic is **presence**. Radar sensors that cost about $15 each track up
+to nine people around the flat, each to the spot, even when someone is sitting perfectly still.
+My phone's location plus Bluetooth tells the house when I've left or come home. Like Santa, it
+knows when I'm sleeping and it knows when I'm awake. It has been tuned to what I want based on
+where I am, the day, the time and what I'm doing. So the lights follow me, the music follows me,
+the door locks behind me and opens when I get back, the robot vacuums clean while I'm out, and my
+alarm reads my work roster so I never set one.
 
-**I don't use dashboards.** Day to day I use a remote with a screen (for TV and the odd ad-hoc
-thing), two little knob displays I built, my voice ("hey Pikachu"), and alerts that pop up on
-whatever screen is nearby.
+The sensors I built are hidden in plain sight: one is in the ceiling under a standard downlight
+cover, one sits on a wall behind a canvas artwork, and one is on a shelf inside a display box.
 
-**Nothing is locked to one company.** IKEA, Philips Hue, Sonos, Samsung, Google and others sit side
-by side with $5 DIY boards. An old Raspberry Pi 400 became my wall calendar *and* a spare brain that
-takes over if the main one dies, and most of it keeps working without the internet.
+**I no longer use "dashboards".** Historically I was heavily dashboard-focused, spending hours a
+week tweaking and perfecting highly custom dashboards that ran on screens in every room. Now I
+use **one remote**: an app I designed from the ground up, running on an affordable Android remote,
+that controls the whole home by touch screen, button press or voice ("hey Pikachu"). There are
+also two round knob screens I built, and alerts that pop up on whatever screen is nearby.
+
+**Nothing is locked to one company.** IKEA, Philips Hue, Sonos, Samsung, Google, Tuya/Smart Life
+and others sit side by side with $5 DIY boards, and almost anything that isn't smart can be
+hooked in cheaply. Unused and "broken" gadgets got a second life doing one specific job each: an
+old Raspberry Pi 400 became my wall calendar *and* a backup clone of the brain that takes over if
+the main one dies. Most of it keeps working without the internet.
 
 ## What it does
 
 | | |
 |---|---|
-| [**1 · Presence**](docs/01-presence.md) | Three radars fused onto my floorplan, still-person detection, Bluetooth + GPS that must agree before I'm "away" |
+| [**1 · Presence**](docs/01-presence.md) | Three radars fused onto my floorplan (up to 9 people), still-person detection, Bluetooth + GPS that must agree before I'm "away" |
 | [**2 · Mornings**](docs/02-mornings-and-work-alarm.md) | Alarms worked out from my work calendar, whole-house Sonos, a morning briefing and the news |
 | [**3 · Leaving & coming home**](docs/03-leaving-and-coming-home.md) | Lock up, lights off, robots clean, intruder alerts, the door opens as I arrive |
-| [**4 · Popups on every screen**](docs/04-popups-on-every-screen.md) | One state shown on remotes, knobs, wall board, phone and speakers. No dashboards |
-| [**5 · Voice: "hey Pikachu"**](docs/05-voice-hey-pikachu.md) | Custom wake word on a voice box and my remotes, local commands first |
-| [**6 · Media**](docs/06-media-and-sonos.md) | Music follows me, the TV takes over the Sonos, Plex tidies up after itself |
+| [**4 · One remote & popups everywhere**](docs/04-popups-on-every-screen.md) | My own remote app, two knobs, a wall board, phone and speakers all show the same state |
+| [**5 · Voice: "hey Pikachu"**](docs/05-voice-hey-pikachu.md) | A custom wake word on a voice box and my remotes, local commands first |
+| [**6 · Media**](docs/06-media-and-sonos.md) | Music follows me, the TV takes over the Sonos, a B&O-style music knob |
 | [**7 · Safety nets**](docs/07-safety-nets.md) | Leaks, weather warnings, radar ghosts, lost speakers, the Pi's own health |
-| [**8 · Failover**](docs/08-failover-and-infrastructure.md) | The wall-calendar Pi takes over in ~5 min if the main one dies |
+| [**8 · Failover**](docs/08-failover-and-infrastructure.md) | A backup clone on the wall-calendar Pi takes over in ~5 minutes |
 | [**9 · Rebuild from scratch**](docs/09-rebuild-from-scratch.md) | Every add-on, HACS component, integration and step, in order |
 | [**10 · Lessons learned**](docs/10-lessons-learned.md) | What I'd tell anyone starting out |
 | [Hardware](docs/hardware.md) | Everything in the flat, from $5 boards to the TV |
@@ -47,7 +58,7 @@ takes over if the main one dies, and most of it keeps working without the intern
 
 | When | What happens, without me doing anything |
 |---|---|
-| ~70 min before my shift | Every speaker plays my alarm; lights fade up; the alarm pops up on the remote, the knob and my phone |
+| ~70 min before my shift | Every speaker plays my alarm, the lights fade up, and the alarm pops up on the remote, the knob and my phone |
 | Out of bed | Morning lights, TV on with the news |
 | First bathroom visit | The speaker reads today's calendar and a news digest, then joins the lounge |
 | Walking around | Lights come on ahead of me and go off behind me; music follows me (if I want it) |
@@ -56,25 +67,25 @@ takes over if the main one dies, and most of it keeps working without the intern
 | Coming home | The door unlocks as I walk up; "Welcome home" over the speakers |
 | Evening | Sunset and 9 pm scenes, sofa + TV lights, night sound on the TV |
 | Falling asleep on the sofa | Everything turns off |
-| 2 am | A dim path to the bathroom, off once I'm back in bed |
+| 2 am | A dim path lights the way to the bathroom and the kitchen, and switches off once I'm back in bed |
 
 ## See it
 
-**Presence on the floorplan** (illustrative mock-up of the night path and kitchen lights,
-built from my real zones and radar positions):
+**Presence on the floorplan.** An illustrative mock-up built from my real zones and radar
+positions: the 2 am bathroom-and-a-drink run, then the kitchen lights in the day.
 
 ![RMM demo](images/rmm/rmm-demo.gif)
 
-**The things I actually touch**
+**The one remote, the knobs and the wall board**
 
-| Remote (my own app) | Rotary knob | Wall board (old Pi 400) |
-|---|---|---|
-| <img src="images/astrion/main.png" width="230"> | <img src="images/rotary/01-home-wheel.png" width="230"> | <img src="images/board/photo-in-situ.jpg" width="300"> |
-| <img src="images/astrion/tv-plex.png" width="230"> | <img src="images/rotary/02-lights.png" width="230"> | <img src="images/board/screenshot-night.png" width="300"> |
+| The one remote (my own app) | BæoRemote music knob | Bedroom hub knob | Wall board (old Pi 400) |
+|---|---|---|---|
+| <img src="images/astrion/main.png" width="200"> | <img src="images/baeoremote/now-playing.png" width="200"> | <img src="images/rotary/01-home-wheel.png" width="200"> | <img src="images/board/photo-in-situ.jpg" width="260"> |
+| <img src="images/astrion/tv-plex.png" width="200"> | <img src="images/baeoremote/playlists.png" width="200"> | <img src="images/rotary/02-lights.png" width="200"> | <img src="images/board/screenshot-night.png" width="260"> |
 
 **Popups wherever I am**
 
-| Washer done | Alarm on the remote | Alarm on the knob |
+| Washer done | Alarm on the remote | Alarm on a knob |
 |---|---|---|
 | <img src="images/astrion/alert-washer.png" width="230"> | <img src="images/astrion/alarm-ringing.png" width="230"> | <img src="images/rotary/10-alarm-ringing.png" width="230"> |
 
@@ -83,7 +94,7 @@ built from my real zones and radar positions):
 ```mermaid
 flowchart LR
   subgraph Sense[Sensing]
-    Radar[3× LD2450 radar<br/>+ LD2412 still radar] --> RMM[Radar Map Manager<br/>room zones]
+    Radar[3× LD2450 radar<br/>+ LD2412 still radar] --> RMM[Radar Map Manager<br/>room zones, up to 9 people]
     PIR[PIR motion]
     BLE[ESP32 Bluetooth proxies] --> Bermuda[Bermuda<br/>phone presence]
     GPS[Phone GPS]
@@ -97,12 +108,12 @@ flowchart LR
   Bermuda --> Auto
   GPS --> Auto
   Cal --> Auto
-  Auto --> Lights[Lights<br/>Zigbee · Hue · WiZ · Matter]
+  Auto --> Lights[Lights<br/>Zigbee · Hue · WiZ · Matter · Tuya]
   Auto --> Sonos[Sonos + Music Assistant]
   Auto --> Door[Door lock]
   Auto --> Robots[Robot vacuums]
-  Auto --> Screens[Remotes · knobs ·<br/>wall board · phone]
-  Standby[Pi 400 wall calendar<br/>= standby brain] -. takes over if the Pi 5 dies .-> Brain
+  Auto --> Screens[One remote · knobs ·<br/>wall board · phone]
+  Standby[Pi 400 wall calendar<br/>= backup clone] -. takes over if the Pi 5 dies .-> Brain
 ```
 
 ## What's in this repo
@@ -115,13 +126,14 @@ config/            the real config, scrubbed of private details (copy into /conf
   esphome/         ESPHome devices (secrets.example.yaml shows what to fill in)
   rmm/             Radar Map Manager zones and radar positions
 docs/              the write-up, one topic per page
-images/            screenshots, the floorplan and the radar demo
-tools/             make_rmm_gif.py (regenerates the radar demo)
+images/            screenshots, the floorplan, the infographic and the radar demo
+tools/             make_rmm_gif.py (regenerates the radar demo) + the fonts it uses (OFL)
 ```
 
 ## Related projects
-- [astrion-dashboard](https://github.com/baes-cloud/astrion-dashboard): my replacement app for the Astrion remotes
-- [esp-rotary-display-ha-hub](https://github.com/baes-cloud/esp-rotary-display-ha-hub): the round rotary knob displays
+- [astrion-dashboard](https://github.com/baes-cloud/astrion-dashboard): the one remote, my from-scratch app for the Astrion HA100
+- [baeoremote](https://github.com/baes-cloud/baeoremote): BæoRemote, the B&O Essence-style music knob
+- [esp-rotary-display-ha-hub](https://github.com/baes-cloud/esp-rotary-display-ha-hub): the whole-home hub knob
 - [rpi-departure-board](https://github.com/baes-cloud/rpi-departure-board): the split-flap wall calendar
 
 ## Privacy

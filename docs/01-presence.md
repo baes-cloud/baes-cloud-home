@@ -6,11 +6,15 @@ the house combines four kinds of sensing, each covering the others' blind spots.
 
 | Layer | Hardware | What it's good at | What it's bad at |
 |---|---|---|---|
-| **mmWave radar (LD2450)** | 3 radars: an Apollo R PRO-1 plus two DIY ESP32 + LD2450 boards (~$15 radar each) | Tracks up to 3 people with x/y position, through a whole room | Can lose a perfectly still person; sees robot vacuums and vibrating washers as people |
+| **mmWave radar (LD2450)** | 3 radars: an Apollo R PRO-1 plus two DIY ESP32 + LD2450 boards (~$15 radar each) | Each tracks up to 3 people with x/y position, so up to **9 people** across the flat | Can lose a perfectly still person; sees robot vacuums and vibrating washers as people |
 | **"Still" radar (LD2412)** | Built into the Apollo | Picks up breathing and micro-movement on the sofa | No position, just "someone is there" |
 | **PIR motion** | IKEA VALLHORN, Xiaomi, a Sonoff SNZB-06P | Instant "someone walked in" | Times out on people sitting still |
 | **Bluetooth (BLE)** | ESP32 Bluetooth proxies around the flat + my phone's beacon, via **Bermuda** | "My phone is in the flat" (and roughly which room) | Phones put beacons to sleep; BLE alone can be spoofed |
 | **GPS** | Home Assistant Companion app | "I'm actually away from home" | Slow and fuzzy near home |
+
+The radars I built are hidden in plain sight: one is in the ceiling under a standard downlight
+cover, one sits on a wall behind a canvas artwork, and one is on a shelf inside a display box.
+mmWave radar sees straight through fabric, canvas and thin plastic.
 
 ## Radar Map Manager: one map from three radars
 
@@ -98,8 +102,9 @@ The exported map (zones, radar positions, tracking settings) is in
   mode: restart
 ```
 
-The **night path** is the same idea at 2 am: getting up lights a dim route through kitchen,
-wardrobe and bathroom, and it all goes off two minutes after I'm back in bed.
+The **night path** is the same idea at 2 am. Getting up for the bathroom, and then the kitchen
+for a drink, lights a dim route (mirror LED, wardrobe, kitchen at 25%). It all goes off two minutes
+after I'm back in bed, which is exactly the walk in the animation above.
 
 <details><summary><b>RMM: Night path to bathroom</b> (click to expand)</summary>
 

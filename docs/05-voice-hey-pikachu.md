@@ -11,7 +11,7 @@ triggers are rare. And I like Pikachu. (The model file is spelled phonetically,
 ## Where it listens
 - **An ESP32-S3-Box-3** in the kitchen, plus status LED feedback (yellow listening, green
   responding, a safety timeout).
-- **The remotes.** My remote app streams microphone audio to Home Assistant's openWakeWord
+- **The one remote** (both handsets). My remote app streams microphone audio to Home Assistant's openWakeWord
   add-on. It isn't battery-optimised: wake-word streaming is continuous (about 32 KB/s, roughly
   685 MB per 10 hours per remote), so it listens all the time while docked and only for
   **2 minutes after I lift a remote off its charger**.

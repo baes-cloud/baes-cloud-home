@@ -11,17 +11,19 @@ from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageFilter
 MAP = 520            # rendered floorplan size (px)
 PANEL = 300          # side panel width (px)
 FPS = 10
-TEAL = (44, 170, 156)
-AMBER = (255, 196, 64)
+BG = (27, 36, 45)          # #1B242D
+TEAL = (140, 189, 181)     # #8CBDB5 lifted Hailstorm (accent)
+AMBER = (242, 190, 92)     # lights 'on' stay warm amber
+DOLL = (230, 188, 182)     # #E6BCB6 Baby Doll
+INK = (241, 236, 234)      # #F1ECEA
+MUTE = (169, 186, 182)     # #A9BAB6
+BAD = (227, 123, 123)      # #E37B7B
 
-def font(size, bold=False):
-    name = 'DejaVuSans-Bold.ttf' if bold else 'DejaVuSans.ttf'
-    try:
-        return ImageFont.truetype(f'/usr/share/fonts/truetype/dejavu/{name}', size)
-    except OSError:
-        return ImageFont.load_default()
+def font(size, bold=False, display=False):
+    name = 'syne_700.ttf' if display else ('manrope_700.ttf' if bold else 'manrope_500.ttf')
+    return ImageFont.truetype(os.path.join(os.path.dirname(__file__), 'fonts', name), size)
 
-F_T, F_B, F_S, F_L = font(19, True), font(15, True), font(14), font(12, True)
+F_T, F_B, F_S, F_L = font(21, display=True), font(15, True), font(14), font(12, True)
 rmm = json.load(open('config/rmm/radar_map_manager.json'))
 base = Image.open('images/rmm/floorplan.png').convert('RGB').resize((MAP, MAP), Image.LANCZOS)
 
@@ -32,7 +34,7 @@ ZONES = {z['name'].lower(): [P(*p) for p in z['points']] for z in rmm['zones']['
 EXCL = [[P(*p) for p in z['points']] for z in rmm['zones']['exclude_zones'] if z['name'] == 'washer/dryer']
 RADARS = [P(r['layout']['origin_x'], r['layout']['origin_y']) for r in rmm['radars'].values()]
 LIGHTS = {  # illustrative positions (percent of the plan)
-    'Kitchen 25%':  (66, 45), 'Wardrobe': (74, 70), 'Mirror LED': (49, 84), 'Kitchen': (66, 45),
+    'Kitchen 25%':  (72, 44), 'Wardrobe': (74, 70), 'Mirror LED': (49, 84), 'Kitchen': (66, 45),
 }
 
 def inside(pt, poly):
@@ -68,7 +70,7 @@ def wrap(text, width, f):
     return lines + [cur] if cur else lines
 
 def frame(night, target, trail, lights, clock, title, caption, hold_zone=None):
-    img = Image.new('RGB', (MAP + PANEL, MAP), (18, 22, 28))
+    img = Image.new('RGB', (MAP + PANEL, MAP), BG)
     plan = ImageEnhance.Brightness(base).enhance(0.32 if night else 1.0)
     glow = Image.new('L', (MAP, MAP), 0); gd = ImageDraw.Draw(glow)
     for name, on in lights.items():
@@ -86,9 +88,9 @@ def frame(night, target, trail, lights, clock, title, caption, hold_zone=None):
         a = 95 if n in occupied else 22
         od.polygon(poly, fill=TEAL + (a,), outline=TEAL + (150 if n in occupied else 60,))
     for poly in EXCL:
-        od.polygon(poly, fill=(220, 70, 70, 45), outline=(220, 70, 70, 120))
+        od.polygon(poly, fill=BAD + (45,), outline=BAD + (130,))
     for rx, ry in RADARS:
-        od.ellipse([rx - 6, ry - 6, rx + 6, ry + 6], fill=(255, 80, 80, 230))
+        od.ellipse([rx - 6, ry - 6, rx + 6, ry + 6], fill=DOLL + (240,))
     for name, on in lights.items():
         x, y = P(*LIGHTS[name])
         od.ellipse([x - 9, y - 9, x + 9, y + 9], fill=(AMBER + (255,)) if on else (90, 90, 90, 200), outline=(255, 255, 255, 180))
@@ -97,52 +99,55 @@ def frame(night, target, trail, lights, clock, title, caption, hold_zone=None):
         od.ellipse([tx - 3, ty - 3, tx + 3, ty + 3], fill=TEAL + (a,))
     if target:
         tx, ty = target
-        od.ellipse([tx - 13, ty - 13, tx + 13, ty + 13], fill=TEAL + (240,), outline=(255, 255, 255, 255), width=2)
-        od.text((tx - 4, ty - 8), '1', fill='white', font=F_B)
+        od.ellipse([tx - 13, ty - 13, tx + 13, ty + 13], fill=TEAL + (245,), outline=INK + (255,), width=2)
+        od.text((tx - 4, ty - 9), '1', fill=BG, font=F_B)
     img.paste(Image.alpha_composite(plan.convert('RGBA'), ov).convert('RGB'), (0, 0))
     d = ImageDraw.Draw(img); x0 = MAP + 18
-    d.text((x0, 16), title, fill='white', font=F_T)
-    d.text((x0, 44), clock, fill=AMBER if night else (150, 220, 210), font=font(30, True))
-    d.text((x0, 92), 'ZONES OCCUPIED', fill=(140, 150, 160), font=F_L)
+    d.text((x0, 14), title, fill=INK, font=F_T)
+    d.text((x0, 44), clock, fill=AMBER if night else TEAL, font=font(30, display=True))
+    d.text((x0, 92), 'ZONES OCCUPIED', fill=MUTE, font=F_L)
     d.text((x0, 110), ', '.join(z.title() for z in occupied) or '—', fill=TEAL, font=F_B)
-    d.text((x0, 142), 'LIGHTS', fill=(140, 150, 160), font=F_L)
+    d.text((x0, 142), 'LIGHTS', fill=MUTE, font=F_L)
     y = 160
     for name, on in lights.items():
-        d.ellipse([x0, y + 3, x0 + 12, y + 15], fill=AMBER if on else (70, 70, 70))
-        d.text((x0 + 20, y), f'{name}  {"on" if on else "off"}', fill='white' if on else (130, 130, 130), font=F_S)
+        d.ellipse([x0, y + 3, x0 + 12, y + 15], fill=AMBER if on else (58, 74, 88))
+        d.text((x0 + 20, y), f'{name}  {"on" if on else "off"}', fill=INK if on else MUTE, font=F_S)
         y += 22
     y += 14
     for line in wrap(caption, PANEL - 36, F_S):
-        d.text((x0, y), line, fill=(215, 220, 225), font=F_S); y += 20
-    d.text((x0, MAP - 24), 'Illustrative mock-up · RMM + LD2450', fill=(110, 115, 120), font=font(11))
+        d.text((x0, y), line, fill=INK, font=F_S); y += 20
+    d.text((x0, MAP - 24), 'Illustrative mock-up · RMM + LD2450', fill=MUTE, font=font(11))
     return img
 
 frames = []
 def add(frames_list, n=1):
     frames.extend(frames_list * n if isinstance(frames_list, list) else [frames_list] * n)
 
-# --- Scene 1: night path to the bathroom ----------------------------------------
+# --- Scene 1: night path (bed -> bathroom -> kitchen for a drink -> back to bed) ----
 T1 = 'Night path'
 L_off = {'Kitchen 25%': False, 'Wardrobe': False, 'Mirror LED': False}
 L_on = {'Kitchen 25%': True, 'Wardrobe': True, 'Mirror LED': True}
-bed = (28, 74)
-add(frame(True, P(*bed), [], L_off, '02:14', T1, 'Asleep. The bed zone is occupied, it is inside the night window, so the house stays dark.', 'bed'), 14)
-walk_out = path([bed, (27, 60), (26, 53), (36, 50), (45, 51), (48, 60), (51, 76)], 34)
-trail = []
-for i, p in enumerate(walk_out):
-    trail = (trail + [p])[-14:]
-    lit = i >= 6
-    cap = ('Getting up: a target leaves the bed zone and moves into the hall.' if not lit else
-           'Night path: kitchen 25%, wardrobe and the mirror LED come on together - dim, so nothing wakes you up properly.')
-    add(frame(True, p, trail, L_on if lit else L_off, '02:14', T1, cap))
-add(frame(True, P(51, 76), [], L_on, '02:15', T1, 'In the bathroom the radar holds the zone while you stand still - no PIR timeout in the dark.', 'bathroom'), 16)
-walk_back = path([(51, 76), (48, 60), (45, 51), (36, 50), (26, 53), (27, 60), bed], 30)
-trail = []
-for p in walk_back:
-    trail = (trail + [p])[-14:]
-    add(frame(True, p, trail, L_on, '02:17', T1, 'Back to bed. The path lights stay on until you have been back in bed for 2 minutes (or the path has been empty for 4).'))
-add(frame(True, P(*bed), [], L_on, '02:18', T1, 'Back in bed... waiting 2 minutes.', 'bed'), 10)
-add(frame(True, P(*bed), [], L_off, '02:19', T1, 'Bed occupied for 2 minutes, so the path lights switch off. No buttons, no app.', 'bed'), 16)
+bed = (27.9, 74.0)
+bath = (52.3, 77.3)
+drink = (85.0, 46.8)
+def walk(points, steps, clock, cap_fn, lit_fn):
+    trail = []
+    for i, p in enumerate(path(points, steps)):
+        trail = (trail + [p])[-14:]
+        lit = lit_fn(i, p)
+        add(frame(True, p, trail, L_on if lit else L_off, clock, T1, cap_fn(i, lit)))
+add(frame(True, P(*bed), [], L_off, '02:14', T1, 'Asleep. The bed zone is occupied and it is inside the night window, so the house stays dark.', 'bed'), 14)
+walk([bed, (37.5, 72.7), (41.3, 75.4), (47.1, 76.5), bath], 20, '02:14',
+     lambda i, lit: 'Into the bathroom: the night path comes on, dim - mirror LED, wardrobe and the kitchen at 25%.' if lit else 'Up for the bathroom: a target leaves the bed zone.',
+     lambda i, p: inside(p, ZONES['bathroom']))
+add(frame(True, P(*bath), [], L_on, '02:15', T1, 'The radar holds the bathroom while you stand still - no motion sensor timing out on you in the dark.', 'bathroom'), 14)
+walk([bath, (50.4, 66.3), (49.6, 53.8), (51.9, 46.5), (63.5, 45.8), (76.9, 46.2), drink], 26, '02:17',
+     lambda i, lit: 'Then the kitchen for a drink - the way is already lit at 25%, nothing bright.', lambda i, p: True)
+add(frame(True, P(*drink), [], L_on, '02:18', T1, 'Getting a drink.', 'kitchen'), 12)
+walk([drink, (80.8, 44.6), (57.7, 42.7), (34.6, 43.5), (21.2, 44.6), (18.3, 51.0), (15.4, 57.7), (15.0, 66.3), (18.3, 74.0), bed], 34, '02:19',
+     lambda i, lit: 'Back to bed. The path stays on until you have been back in bed for 2 minutes (or it has been empty for 4).', lambda i, p: True)
+add(frame(True, P(*bed), [], L_on, '02:20', T1, 'Back in bed... waiting 2 minutes.', 'bed'), 10)
+add(frame(True, P(*bed), [], L_off, '02:22', T1, 'Bed occupied for 2 minutes, so the path lights switch off. No buttons, no app.', 'bed'), 16)
 
 # --- Scene 2: kitchen lights in the day --------------------------------------------
 T2 = 'Kitchen lights'
