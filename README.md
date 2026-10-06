@@ -20,8 +20,16 @@ to nine people around the flat, each to the spot, even when someone is sitting p
 My phone's location plus Bluetooth tells the house when I've left or come home. Like Santa, it
 knows when I'm sleeping and it knows when I'm awake. It has been tuned to what I want based on
 where I am, the day, the time and what I'm doing. So the lights follow me, the music follows me,
-the door locks behind me and opens when I get back, the robot vacuums clean while I'm out, and my
-alarm reads my work roster so I never set one.
+the door locks behind me (a fingerprint on the keypad lets me back in), the robot vacuums clean
+while I'm out, and my alarm reads my work roster so I never set one.
+
+Two robot vacuums share the floors. The main one (a Roborock) does a full clean once I've been gone
+ten minutes. My old, cheap one (a Lubluelu SL68 that still works fine) then does a final quick sweep
+if the main one finished without a problem.
+
+When friends are over, **party mode** pauses the automations that would be annoying or make no
+sense with a crowd: lights reacting to people walking past, scenes changing, the door locking itself
+and announcing it, away mode and the robots. It nags me at 10 am if I leave it on.
 
 The sensors I built are hidden in plain sight: one is in the ceiling under a standard downlight
 cover, one sits on a wall behind a canvas artwork, and one is on a shelf inside a display box.
@@ -45,7 +53,7 @@ server. Most of it keeps working without the internet.
 |---|---|
 | [**1 · Presence**](docs/01-presence.md) | Three radars fused onto my floorplan (up to 9 people), still-person detection, Bluetooth + GPS that must agree before I'm "away" |
 | [**2 · Mornings**](docs/02-mornings-and-work-alarm.md) | Alarms worked out from my work calendar, whole-house Sonos, a morning briefing and the news |
-| [**3 · Leaving & coming home**](docs/03-leaving-and-coming-home.md) | Lock up, lights off, robots clean, intruder alerts, the door opens as I arrive |
+| [**3 · Leaving & coming home**](docs/03-leaving-and-coming-home.md) | Lock up, lights off, robots clean, intruder alerts, a fingerprint keypad (with backups) to get back in |
 | [**4 · One remote & popups everywhere**](docs/04-popups-on-every-screen.md) | My own remote app, two knobs, a wall board, phone and speakers all show the same state |
 | [**5 · Voice: "hey Pikachu"**](docs/05-voice-hey-pikachu.md) | A custom wake word on a voice box and my remotes, local commands first |
 | [**6 · Media**](docs/06-media-and-sonos.md) | Music follows me, the TV takes over the Sonos, a B&O-style music knob |
@@ -64,8 +72,8 @@ server. Most of it keeps working without the internet.
 | First bathroom visit | The speaker reads today's calendar and a news digest, then joins the lounge |
 | Walking around | Lights come on ahead of me and go off behind me; music follows me (if I want it) |
 | Leaving | Door locks, lights and media go off, away mode arms, robots start cleaning |
-| While I'm out | Radar intruder alert, camera clips described by AI, door alerts |
-| Coming home | The door unlocks as I walk up; "Welcome home" over the speakers |
+| While I'm out | Radar intruder alert, door alerts, and the camera (only on while I'm away) sends clips described by AI |
+| Coming home | A fingerprint on the keypad lets me in, with a hands-free unlock as backup; away mode switches off |
 | Evening | Sunset and 9 pm scenes, sofa + TV lights, night sound on the TV |
 | Falling asleep on the sofa | Everything turns off |
 | 2 am | A dim path lights the way to the bathroom and the kitchen, and switches off once I'm back in bed |
@@ -100,7 +108,6 @@ flowchart LR
     Dongle[Zigbee dongle<br/>+ motion, door,<br/>leak sensors] --> Lap[baelap, old laptop<br/>Zigbee2MQTT,<br/>MQTT, proxy,<br/>failover watchdog]
     Pi400[Pi 400 wall<br/>calendar + backup<br/>clone of the Pi 5]
     NAS[NAS: end-of-life<br/>QNAP running<br/>Unraid: Plex,<br/>music, backups]
-    NUC[2013 mini-PC<br/>builds ESP32<br/>firmware]
   end
   subgraph Sense[What it senses]
     Radar[3× LD2450 radar<br/>+ 1 still radar] --> RMM[Radar Map<br/>Manager: up to<br/>9 people]
@@ -117,7 +124,7 @@ flowchart LR
   Brain --> Out
   Brain ~~~ Lights & Sonos & Alarms
   Cal ~~~ Pi400
-  Lap ~~~ Pi400 ~~~ NAS ~~~ NUC
+  Lap ~~~ Pi400 ~~~ NAS
 ```
 
 ## What's in this repo

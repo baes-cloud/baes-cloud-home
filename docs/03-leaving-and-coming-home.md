@@ -10,11 +10,16 @@ sequenceDiagram
   HA->>House: +5 min and all radar zones empty: lights + media off
   HA->>House: +15 min radar empty: arm away mode
   HA->>House: +10 min (daytime): Roborock cleans, then the SL68 (twice)
-  Note over HA,House: While away: radar intruder alert, camera clips<br/>described by AI, door-unlocked alert
-  Me->>HA: Bluetooth proxy hears the phone again
-  HA->>HA: Was I away 10+ min? Away mode armed? GPS agrees (waits ≤2 min)?
-  HA->>House: Unlock and hold 60 s
-  House->>Me: Door opens: "Welcome home" on the lounge Sonos
+  Note over HA,House: While away: radar intruder alert, the camera switches on<br/>(only while I'm away) and AI describes its clips, door-unlocked alert
+  alt The main way in
+    Me->>House: Fingerprint on the keypad unlocks the door
+  else Backup, hands-free
+    Me->>HA: Bluetooth proxy hears the phone again
+    HA->>HA: Was I away 10+ min? Away mode armed? GPS agrees (waits ≤2 min)?
+    HA->>House: Unlock and hold 60 s, "Welcome home" when the door opens
+  else Backup, manual
+    Me->>HA: Phone taps the NFC tag at the door
+  end
   HA->>House: Locks 30 s after the door closes
 ```
 
@@ -113,8 +118,8 @@ sequenceDiagram
   stay paused until the last robot docks. If I come home mid-run, I get a "send to dock" button.
 - **Intruder alert.** The radar sees a person while away mode is armed and my phone isn't home:
   a push with a camera snapshot, plus a red popup on every remote until I clear it.
-- **Attic camera.** Motion, person or sound on the Nest camera: Gemini describes the clip in
-  one sentence and I get a push with the thumbnail.
+- **Attic camera.** The Nest camera only switches on while I'm away. Motion, person or sound on
+  it: Gemini describes the clip in one sentence and I get a push with the thumbnail.
 - **Door unlocked while I'm away:** high-priority alert, relocked after 60 s unless I say otherwise.
 
 <details><summary><b>Roborock · clean while away</b> (click to expand)</summary>
@@ -519,7 +524,12 @@ sl68_smart_clean_once:
 </details>
 
 
-## Coming home: the door opens for me
+## Coming home: fingerprint first, with backups
+I let myself in with a fingerprint on the keypad. Home Assistant backs that up in the background:
+if the Bluetooth proxies hear my phone after a real absence and GPS agrees, it unlocks the door
+hands-free for 60 seconds (below); NFC tags at the door are a manual fallback; and the automations
+further down make sure the door always ends up locked again.
+
 <details><summary><b>Front door · BLE arrival unlock + welcome</b> (click to expand)</summary>
 
 ```yaml
@@ -615,12 +625,12 @@ sl68_smart_clean_once:
 
 Why so many conditions? **Bluetooth alone can be spoofed and phone beacons sleep overnight**,
 so a "new" Bluetooth sighting at 3 am isn't an arrival. Requiring away mode to have been
-armed, plus GPS agreement, makes the auto-unlock both safe and boring. NFC tags at the door
+armed, plus GPS agreement, makes the backup auto-unlock both safe and boring. NFC tags at the door
 (only my phone counts) are the manual fallback.
 
 ## The front door, belt and braces
-The lock is a SwitchBot Lock Pro with a separate Zigbee contact sensor. Thirteen small
-automations keep it honest:
+The lock is a SwitchBot Lock Pro with a fingerprint keypad and a separate Zigbee contact sensor.
+Thirteen small automations keep it honest in the background:
 
 - **Auto-lock** 30 s after the door closes. If the sensor is offline, a blind 45 s timer.
 - A **10-minute backstop** and a **3-hourly sweep** (silenced overnight).

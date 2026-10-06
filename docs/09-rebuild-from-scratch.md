@@ -13,7 +13,7 @@ restore brings back everything including the UI-only bits. This guide is for whe
 ## 2. Add-ons (Settings → Add-ons)
 | Add-on | Why |
 |---|---|
-| **ESPHome Device Builder** | Builds and updates all the DIY ESP32 devices. Compiles are offloaded to the ESPHome desktop builder on a mini-PC (much faster than the Pi) |
+| **ESPHome Device Builder** | Builds and updates all the DIY ESP32 devices |
 | **Matter Server** | Matter/Thread devices (IKEA BILRESA buttons, TIMMERFLOTTE sensor, a Govee strip) |
 | **Music Assistant** | Local music library (SMB share on the NAS) + Spotify, played to Sonos |
 | **openWakeWord** | Runs the custom "hey Pikachu" model (put the `.tflite` in `/share/openwakeword/`) |

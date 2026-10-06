@@ -12,7 +12,7 @@
   second all day, so it's stopped after 5 minutes (Plex keeps the resume point).
 - **Night sound** on the TV speaker from 8 pm to 8 am.
 - **Club Lights:** when the lounge plays from Music Assistant and party lights are on, a
-  beat-sync player on my mini-PC joins the group and drives the lights.
+  beat-sync player joins the group and drives the lights.
 
 ## BæoRemote: a B&O-style music knob
 [BæoRemote](https://github.com/baes-cloud/baeoremote) is a round ESP32-S3 knob display I built for

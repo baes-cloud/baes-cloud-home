@@ -8,7 +8,7 @@
    Bluetooth *and* empty radars to leave; any single sign of life to come back. A false "away"
    at 6 am (it happened once) is much worse than arming late.
 4. **Bluetooth alone isn't proof.** Beacons can be spoofed and phones put them to sleep, so the
-   door only auto-unlocks after a real absence with GPS agreeing.
+   backup auto-unlock only fires after a real absence with GPS agreeing.
 5. **Detect manual overrides with `context.user_id`.** `parent_id` is empty for timed automations too.
 6. **Reloading automations wipes pending `for:` timers.** Design for it: sweeps and safety nets.
 7. **Keep things that must never fail apart.** The alarm and its lights are separate automations,

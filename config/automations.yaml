@@ -2501,7 +2501,6 @@
           channel: Front door security
           importance: high
           tag: front_door_away_alert
-  initial_state: false
   mode: restart
 - id: '1788110000006'
   alias: Front door · NFC tag unlock (Razr only)
@@ -3287,7 +3286,7 @@
 - id: ma_club_hue_light_sync
   alias: Club Lights follow Club
   description: When the Club Sonos plays from Music Assistant and Club Lights is on,
-    join the Club Lights beat-sync player (baenuc ~/club-lights) to it. Only works
+    join the Club Lights beat-sync player to it. Only works
     for MA-played music, not Spotify/TV played natively on the Sonos.
   triggers:
   - trigger: state
