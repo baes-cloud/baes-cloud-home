@@ -36,7 +36,8 @@ also two round knob screens I built, and alerts that pop up on whatever screen i
 and others sit side by side with $5 DIY boards, and almost anything that isn't smart can be
 hooked in cheaply. Unused and "broken" gadgets got a second life doing one specific job each: an
 old Raspberry Pi 400 became my wall calendar *and* a backup clone of the brain that takes over if
-the main one dies. Most of it keeps working without the internet.
+the main one dies, and a QNAP NAS that was declared end-of-life now runs Unraid as my media
+server. Most of it keeps working without the internet.
 
 ## What it does
 
@@ -92,32 +93,31 @@ positions: the 2 am run (bed → ensuite → bathroom → wardrobe → kitchen f
 ## How it's wired
 
 ```mermaid
+%%{init: {"flowchart": {"nodeSpacing": 20, "rankSpacing": 24}}}%%
 flowchart LR
-  subgraph Sense[Sensing]
-    Radar[3× LD2450 radar<br/>+ LD2412 still radar] --> RMM[Radar Map Manager<br/>room zones, up to 9 people]
-    PIR[PIR motion]
-    BLE[ESP32 Bluetooth proxies] --> Bermuda[Bermuda<br/>phone presence]
-    GPS[Phone GPS]
-    Cal[Work calendar]
+  %% "Behind the scenes" is declared first so it sits along the bottom; ~~~ links are invisible and only position boxes
+  subgraph Infra[Behind the scenes]
+    Dongle[Zigbee dongle<br/>+ motion, door,<br/>leak sensors] --> Lap[baelap, old laptop<br/>Zigbee2MQTT,<br/>MQTT, proxy,<br/>failover watchdog]
+    Pi400[Pi 400 wall<br/>calendar + backup<br/>clone of the Pi 5]
+    NAS[NAS: end-of-life<br/>QNAP running<br/>Unraid: Plex,<br/>music, backups]
+    NUC[2013 mini-PC<br/>builds ESP32<br/>firmware]
   end
-  subgraph Brain[Home Assistant on a Raspberry Pi 5]
-    Auto[~80 automations<br/>in 8 categories]
+  subgraph Sense[What it senses]
+    Radar[3× LD2450 radar<br/>+ 1 still radar] --> RMM[Radar Map<br/>Manager: up to<br/>9 people]
+    BLE[ESP32 Bluetooth<br/>proxies] --> Bermuda[Bermuda<br/>phone presence]
+    Cal[Phone GPS +<br/>work calendar]
   end
-  RMM --> Auto
-  PIR --> Auto
-  Bermuda --> Auto
-  GPS --> Auto
-  Cal --> Auto
-  Auto --> Lights[Lights<br/>Zigbee · Hue · WiZ · Matter · Tuya]
-  Auto --> Blinds[Blinds and sheer curtains<br/>Zigbee · Tuya]
-  Auto --> Alarms[Alarms<br/>from my work calendar,<br/>on every speaker]
-  Auto --> Sonos[Sonos speakers<br/>+ Music Assistant]
-  Auto --> TVs[TVs<br/>Samsung The Serif ·<br/>Google TV Streamer]
-  Auto --> Media[Media centre<br/>Plex media server on the NAS<br/>· music library]
-  Auto --> Door[Door lock]
-  Auto --> Robots[Robot vacuums]
-  Auto --> Screens[One remote · knobs ·<br/>wall board · phone]
-  Standby[Pi 400 wall calendar<br/>= backup clone] -. takes over if the Pi 5 dies .-> Brain
+  Brain["<b>Home Assistant</b><br/>Raspberry Pi 5<br/>~80 automations"]
+  subgraph Out[What it runs]
+    Lights[Lights: Zigbee,<br/>Hue, WiZ,<br/>Matter, Tuya] ~~~ Blinds[Blinds and<br/>sheer curtains<br/>Zigbee, Tuya] ~~~ Door[Door lock]
+    Sonos[Sonos + Music<br/>Assistant] ~~~ TVs[Samsung TVs +<br/>Google TV<br/>Streamer] ~~~ Media[Media centre:<br/>Plex, music<br/>library]
+    Alarms[Alarms from my<br/>work calendar,<br/>on every speaker] ~~~ Robots["Robot vacuums<br/>clean while<br/>I'm out"] ~~~ Screens[Popups on the<br/>remote, knobs,<br/>board and phone]
+  end
+  RMM & Bermuda & Cal & Lap --> Brain
+  Brain --> Out
+  Brain ~~~ Lights & Sonos & Alarms
+  Cal ~~~ Pi400
+  Lap ~~~ Pi400 ~~~ NAS ~~~ NUC
 ```
 
 ## What's in this repo

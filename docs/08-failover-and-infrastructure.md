@@ -81,7 +81,7 @@ seconds after promotion, and failback was fully automatic once the Pi 5 came bac
   nightly news-digest job.
 - **2013 Intel mini-PC:** compiles ESPHome firmware for the HA add-on (offloaded builder) and runs the
   party-light beat sync.
-- **NAS (Unraid):** Plex, the music library, backups, and the news digest web server.
+- **NAS (an end-of-life QNAP, now running Unraid):** Plex, the music library, backups, and the news digest web server.
 - **Backups:** daily, 3 copies kept, to the Pi, the NAS and Home Assistant Cloud.
 
 ---
