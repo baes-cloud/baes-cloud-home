@@ -109,7 +109,11 @@ flowchart LR
   GPS --> Auto
   Cal --> Auto
   Auto --> Lights[Lights<br/>Zigbee · Hue · WiZ · Matter · Tuya]
-  Auto --> Sonos[Sonos + Music Assistant]
+  Auto --> Blinds[Blinds and sheer curtains<br/>Zigbee · Tuya]
+  Auto --> Alarms[Alarms<br/>from my work calendar,<br/>on every speaker]
+  Auto --> Sonos[Sonos speakers<br/>+ Music Assistant]
+  Auto --> TVs[TVs<br/>Samsung The Serif ·<br/>Google TV Streamer]
+  Auto --> Media[Media centre<br/>Plex media server on the NAS<br/>· music library]
   Auto --> Door[Door lock]
   Auto --> Robots[Robot vacuums]
   Auto --> Screens[One remote · knobs ·<br/>wall board · phone]
