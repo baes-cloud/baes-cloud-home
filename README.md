@@ -14,8 +14,8 @@
 My [Home Assistant](https://www.home-assistant.io) setup: one apartment, about 85 devices from 25
 brands, cheap sensors I built myself, and tech that was gathering dust. All of it is tuned
 so the home works around me and I hardly ever have to touch it. Most of what it does is based on 
-what I want/have asked for + all of the sensor data my home assistant has recorded about me and 
-how the home is use and interacted with. 
+what I want/have asked for + all of the sensor data my home assistant has recorded about me, how the
+home is used, and how devices are interacted with.
 
 ![How it fits together](images/overview.svg)
 
