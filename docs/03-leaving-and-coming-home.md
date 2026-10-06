@@ -12,7 +12,7 @@ sequenceDiagram
   HA->>House: +10 min (daytime): Roborock cleans, then the SL68 (twice)
   Note over HA,House: While away: radar intruder alert, the camera switches on<br/>(only while I'm away) and AI describes its clips, door-unlocked alert
   Me->>House: Fingerprint on the keypad unlocks the door
-  Note over Me,House: Extra backup systems are in place (kept private)
+  Note over Me,House: Extra backup systems are in place
   HA->>House: Locks 30 s after the door closes
 ```
 
