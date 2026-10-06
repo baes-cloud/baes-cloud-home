@@ -20,7 +20,7 @@ MUTE = (169, 186, 182)     # #A9BAB6
 BAD = (227, 123, 123)      # #E37B7B
 
 def font(size, bold=False, display=False):
-    name = 'syne_700.ttf' if display else ('manrope_700.ttf' if bold else 'manrope_500.ttf')
+    name = 'IBMPlexSans-Bold.ttf' if display else ('IBMPlexSans-SemiBold.ttf' if bold else 'IBMPlexSans-Regular.ttf')
     return ImageFont.truetype(os.path.join(os.path.dirname(__file__), 'fonts', name), size)
 
 F_T, F_B, F_S, F_L = font(21, display=True), font(15, True), font(14), font(12, True)
