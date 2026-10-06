@@ -65,7 +65,12 @@ Most of it keeps working without the internet, and most of it isn't allowed to t
 
 **It keeps getting better.** Whenever I reach the end of my week with some Claude credits left over,
 Claude reviews the error logs and looks for efficiencies, new approaches, and better or new ways to
-use what's already here, so everything stays in line.
+use what's already here, so everything stays in line. It's also how I do **advanced troubleshooting
+and auditing**: Claude reads the logs, traces, registries and config directly and follows a problem
+to its root cause. Slow restarts turned out to be a 300 MB voice index being rewritten to the USB
+drive after every reboot, and a security alert had been quietly switching itself off at every
+restart. A full audit found two sensor types making over 80% of all database writes, plus
+integrations and add-ons I no longer used.
 
 ## What it does
 
