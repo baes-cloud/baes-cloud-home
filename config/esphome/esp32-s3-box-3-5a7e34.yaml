@@ -1,0 +1,63 @@
+substitutions:
+  name: esp32-s3-box-3-5a7e34
+  friendly_name: ESP32 S3 Box 3 5a7e34
+
+  loading_illustration_file: images/loading1.png
+  idle_illustration_file: images/idle1.png
+  listening_illustration_file: images/listening1.png
+  thinking_illustration_file: images/thinking1.png
+  replying_illustration_file: images/replying1.png
+  error_illustration_file: images/error1.png
+
+  loading_illustration_background_color: '000000'
+  idle_illustration_background_color: '000000'
+  listening_illustration_background_color: 'FFFFFF'
+  thinking_illustration_background_color: 'FFFFFF'
+  replying_illustration_background_color: 'FFFFFF'
+  error_illustration_background_color: '000000'
+
+packages:
+  esphome.voice-assistant: github://esphome/wake-word-voice-assistants/esp32-s3-box-3/esp32-s3-box-3.yaml@main
+
+esphome:
+  name: ${name}
+  name_add_mac_suffix: false
+  friendly_name: ${friendly_name}
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  use_address: <device-ip>
+  # Package's fallback hotspot is open by default; lock it (2026-10-04).
+  ap:
+    password: !secret fallback_ap_password
+
+# Package's OTA has no password; require one (2026-10-04).
+ota:
+  - id: !extend ota_esphome
+    password: !secret ota_password
+  
+# BLE proxy removed 2026-09-27: wake-word audio streaming + active BLE scanning
+# share one 2.4 GHz radio and made the satellite flaky. Office Atom covers this spot.
+
+# --- mic sensitivity, maxed 2026-09-27 ---
+# ES7210 ADC gain at its 37.5 dB ceiling (was 33, default 24).
+audio_adc:
+  - id: !extend es7210_adc
+    mic_gain: 37.5dB
+
+# Remove the ADC's DC bias so the extra gain isn't spent on offset.
+microphone:
+  - id: !extend box_mic
+    correct_dc_offset: true
+
+# Sent to HA with the audio stream: stronger noise suppression to tame the extra
+# gain's hiss, auto-gain already at max, loudness boost x2 -> x3.
+voice_assistant:
+  noise_suppression_level: 3
+  auto_gain: 31dBFS
+  volume_multiplier: 3.0

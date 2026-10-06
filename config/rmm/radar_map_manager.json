@@ -1,0 +1,419 @@
+{
+ "note": "Radar Map Manager map exported from .storage/radar_map_manager (points are % of the floorplan image). Radar IPs/pins removed.",
+ "config": {
+  "update_interval": 0.5,
+  "merge_distance": 0.6,
+  "target_height": 2.6,
+  "fused_color": "#2caa9c",
+  "ema_smoothing_level": 7,
+  "verify_delay": 3.5,
+  "hibernation_ttl": 12,
+  "enable_verify_rule": true,
+  "enable_tracking": true,
+  "show_labels": true,
+  "show_trails": true,
+  "max_jump_base": 1.4,
+  "max_jump_speed": 2,
+  "stationary_max_hold": 1410,
+  "map_scale_x": 10.365822784810128,
+  "map_scale_y": 12.001538461538463
+ },
+ "zones": {
+  "include_zones": [
+   {
+    "name": "Lounge",
+    "delay": 0,
+    "points": [
+     [
+      2.81,
+      3.21
+     ],
+     [
+      1.12,
+      53.48
+     ],
+     [
+      13.81,
+      46.62
+     ],
+     [
+      52.86,
+      45.77
+     ],
+     [
+      54.01,
+      2.21
+     ]
+    ]
+   },
+   {
+    "name": "Kitchen",
+    "delay": 0,
+    "points": [
+     [
+      54.27,
+      2.14
+     ],
+     [
+      96.71,
+      2.03
+     ],
+     [
+      98.63,
+      52.02
+     ],
+     [
+      53.31,
+      56.49
+     ]
+    ]
+   },
+   {
+    "name": "Office",
+    "delay": 0,
+    "points": [
+     [
+      84.13,
+      50.32
+     ],
+     [
+      94.94,
+      48.51
+     ],
+     [
+      94.2,
+      92.3
+     ],
+     [
+      82.06,
+      93.36
+     ],
+     [
+      84.05,
+      50.72
+     ]
+    ]
+   },
+   {
+    "name": "Wardrobe",
+    "delay": 0,
+    "points": [
+     [
+      65.59,
+      56.97
+     ],
+     [
+      83.24,
+      56.59
+     ],
+     [
+      82.14,
+      92.77
+     ],
+     [
+      64.84,
+      94.34
+     ]
+    ]
+   },
+   {
+    "name": "Bathroom",
+    "delay": 0,
+    "points": [
+     [
+      40.95,
+      57.86
+     ],
+     [
+      63.98,
+      57.41
+     ],
+     [
+      64.47,
+      93.84
+     ],
+     [
+      40.22,
+      94.72
+     ]
+    ]
+   },
+   {
+    "name": "Bedroom",
+    "delay": 0,
+    "points": [
+     [
+      2.61,
+      53.37
+     ],
+     [
+      41.52,
+      49.01
+     ],
+     [
+      40.49,
+      93.76
+     ],
+     [
+      0.22,
+      93.77
+     ]
+    ]
+   },
+   {
+    "name": "sofa",
+    "delay": 0,
+    "points": [
+     [
+      16.49,
+      23.84
+     ],
+     [
+      40.66,
+      22.35
+     ],
+     [
+      51.88,
+      22.84
+     ],
+     [
+      51.31,
+      39.59
+     ],
+     [
+      16.38,
+      40.55
+     ]
+    ]
+   },
+   {
+    "name": "bed",
+    "delay": 0,
+    "points": [
+     [
+      21.44,
+      64.61
+     ],
+     [
+      36.23,
+      65.03
+     ],
+     [
+      36.08,
+      86.51
+     ],
+     [
+      20.79,
+      86.96
+     ]
+    ]
+   }
+  ],
+  "exclude_zones": [
+   {
+    "name": "washer/dryer",
+    "delay": 0,
+    "points": [
+     [
+      39.84,
+      59.15
+     ],
+     [
+      41.26,
+      70.53
+     ],
+     [
+      56.71,
+      71.34
+     ],
+     [
+      53.78,
+      55.42
+     ],
+     [
+      39.29,
+      55.07
+     ]
+    ]
+   },
+   {
+    "name": "Zone 3",
+    "delay": 0,
+    "points": [
+     [
+      92.89,
+      52.85
+     ],
+     [
+      95.93,
+      73.17
+     ],
+     [
+      127.24,
+      92.07
+     ],
+     [
+      141.46,
+      45.12
+     ]
+    ]
+   },
+   {
+    "name": "Zone 4",
+    "delay": 0,
+    "points": [
+     [
+      -42.42,
+      88.97
+     ],
+     [
+      95.53,
+      90.65
+     ],
+     [
+      95.27,
+      154.09
+     ],
+     [
+      -11.36,
+      164.49
+     ]
+    ]
+   }
+  ],
+  "entrance_zones": [
+   {
+    "name": "Zone 1",
+    "delay": 0,
+    "points": [
+     [
+      75.61,
+      8.13
+     ],
+     [
+      96.54,
+      7.72
+     ],
+     [
+      96.54,
+      27.44
+     ],
+     [
+      77.44,
+      24.39
+     ]
+    ]
+   }
+  ],
+  "stationary_zones": [
+   {
+    "name": "Bed",
+    "delay": 3600,
+    "points": [
+     [
+      21.28,
+      64.36
+     ],
+     [
+      36.58,
+      64.26
+     ],
+     [
+      36.03,
+      87.49
+     ],
+     [
+      20.82,
+      87.7
+     ]
+    ]
+   },
+   {
+    "name": "bathroom",
+    "delay": 0,
+    "points": [
+     [
+      55.29,
+      58.4
+     ],
+     [
+      65.29,
+      58.62
+     ],
+     [
+      63.07,
+      89.96
+     ],
+     [
+      55.51,
+      89.51
+     ]
+    ]
+   },
+   {
+    "name": "sofa",
+    "delay": 0,
+    "points": [
+     [
+      17.07,
+      30.85
+     ],
+     [
+      50.18,
+      31.51
+     ],
+     [
+      50.62,
+      40.62
+     ],
+     [
+      17.51,
+      41.07
+     ]
+    ]
+   }
+  ]
+ },
+ "radars": {
+  "club_apollo_r_pro_1_ld2450": {
+   "layout": {
+    "origin_x": 57.35,
+    "origin_y": 8.17,
+    "scale_x": 13.31,
+    "scale_y": 13.7,
+    "rotation": 180,
+    "ceiling_mount": false,
+    "mount_height": 2.8,
+    "mirror_x": true,
+    "radar_type": 2
+   },
+   "map_group": "default"
+  },
+  "ld2450_tracker": {
+   "layout": {
+    "origin_x": 28.71,
+    "origin_y": 49.09,
+    "scale_x": 16.2,
+    "scale_y": 13.2,
+    "rotation": 180,
+    "mount_height": 1.8,
+    "mirror_x": false,
+    "radar_type": 2
+   },
+   "map_group": "default"
+  },
+  "ld2450_tracker_2": {
+   "layout": {
+    "origin_x": 94.41,
+    "origin_y": 62.37,
+    "scale_x": 8.57,
+    "scale_y": 12.2,
+    "rotation": 245,
+    "mirror_x": false,
+    "mount_height": 1.9,
+    "radar_type": 2
+   },
+   "map_group": "default"
+  }
+ }
+}

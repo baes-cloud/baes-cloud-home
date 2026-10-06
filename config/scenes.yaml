@@ -1,0 +1,624 @@
+- id: '1779478582945'
+  name: Night
+  entities:
+    light.bar_lights:
+      supported_color_modes:
+      - onoff
+      color_mode:
+      entity_id:
+      - light.bar_dog
+      - light.bar_spotlights
+      icon: mdi:lightbulb-group
+      friendly_name: 'Bar lights '
+      supported_features: 0
+      state: 'off'
+    light.couch:
+      min_color_temp_kelvin: 15
+      max_color_temp_kelvin: 6535
+      supported_color_modes:
+      - color_temp
+      - hs
+      - xy
+      color_mode: hs
+      brightness: 18
+      color_temp_kelvin:
+      hs_color:
+      - 126.142
+      - 97.638
+      rgb_color:
+      - 6
+      - 255
+      - 32
+      xy_color:
+      - 0.173
+      - 0.733
+      icon: mdi:sofa-outline
+      friendly_name: under couch
+      supported_features: 32
+      state: 'on'
+    light.hue_play:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      effect_list:
+      - candle
+      - cosmos
+      - enchant
+      - fire
+      - glisten
+      - 'off'
+      - opal
+      - prism
+      - sparkle
+      - sunbeam
+      - sunrise
+      - sunset
+      - underwater
+      supported_color_modes:
+      - color_temp
+      - xy
+      effect: 'off'
+      color_mode: xy
+      brightness: 15
+      color_temp_kelvin:
+      hs_color:
+      - 313.333
+      - 24.706
+      rgb_color:
+      - 255
+      - 192
+      - 241
+      xy_color:
+      - 0.3595
+      - 0.2743
+      entity_id:
+      - light.hue_play_2
+      - light.hue_play_3
+      - light.hue_play_1
+      icon: mdi:television-ambient-light
+      friendly_name: 'Hue play '
+      supported_features: 44
+      state: 'on'
+    light.club_led_group:
+      min_color_temp_kelvin: 1000
+      max_color_temp_kelvin: 20000
+      effect_list:
+      - candle
+      - cosmos
+      - enchant
+      - fire
+      - glisten
+      - 'off'
+      - opal
+      - prism
+      - sparkle
+      - sunbeam
+      - sunrise
+      - sunset
+      - underwater
+      supported_color_modes:
+      - color_temp
+      - xy
+      effect: 'off'
+      color_mode: xy
+      brightness: 3
+      color_temp_kelvin:
+      hs_color:
+      - 173.854
+      - 80.392
+      rgb_color:
+      - 50
+      - 255
+      - 234
+      xy_color:
+      - 0.1616
+      - 0.3754
+      entity_id:
+      - light.home_hue_omniglow_striplight_1
+      - light.home_hue_flux_strip_light_1
+      icon: mdi:lightbulb-group
+      friendly_name: Club led Group
+      supported_features: 44
+      state: 'on'
+    light.club_art_pendants:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 41
+      off_with_transition: false
+      off_brightness:
+      icon: mdi:light-flood-down
+      friendly_name: Art Pendants
+      supported_features: 40
+      state: 'on'
+    light.tv_art_lights:
+      supported_color_modes:
+      - onoff
+      color_mode:
+      off_with_transition: false
+      off_brightness:
+      friendly_name: TV art light
+      supported_features: 8
+      state: 'off'
+    light.bedroom_cupboard_light:
+      supported_color_modes:
+      - onoff
+      color_mode:
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Art spotlights
+      supported_features: 8
+      state: 'off'
+  metadata:
+    light.bar_lights:
+      entity_only: true
+    light.couch:
+      entity_only: true
+    light.hue_play:
+      entity_only: true
+    light.club_led_group:
+      entity_only: true
+    light.club_art_pendants:
+      entity_only: true
+    light.tv_art_lights:
+      entity_only: true
+    light.bedroom_cupboard_light:
+      entity_only: true
+- id: '1779479411205'
+  name: Bae
+  entities:
+    light.club_art_pendants:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 194
+      off_with_transition: false
+      off_brightness:
+      friendly_name: 'Art Pendanta '
+      supported_features: 40
+      state: 'on'
+    light.bar_lights:
+      supported_color_modes:
+      - onoff
+      color_mode: onoff
+      entity_id:
+      - light.bar_dog
+      - light.bar_spotlights
+      icon: mdi:lightbulb-group
+      friendly_name: 'Bar lights '
+      supported_features: 0
+      state: 'on'
+    light.hue_play_1:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      effect_list:
+      - 'off'
+      - colorloop
+      supported_color_modes:
+      - color_temp
+      - xy
+      effect: 'off'
+      color_mode: xy
+      brightness: 163
+      color_temp_kelvin:
+      hs_color:
+      - 142.021
+      - 73.725
+      rgb_color:
+      - 67
+      - 255
+      - 136
+      xy_color:
+      - 0.186
+      - 0.562
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Play art
+      supported_features: 44
+      state: 'on'
+    light.hue_play_3:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      effect_list:
+      - 'off'
+      - colorloop
+      supported_color_modes:
+      - color_temp
+      - xy
+      effect: 'off'
+      color_mode: xy
+      brightness: 254
+      color_temp_kelvin:
+      hs_color:
+      - 273.306
+      - 96.078
+      rgb_color:
+      - 146
+      - 10
+      - 255
+      xy_color:
+      - 0.237
+      - 0.087
+      off_with_transition: false
+      off_brightness:
+      friendly_name: 'Play tv '
+      supported_features: 44
+      state: 'on'
+    light.hue_play_2:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      effect_list:
+      - 'off'
+      - colorloop
+      supported_color_modes:
+      - color_temp
+      - xy
+      effect: 'off'
+      color_mode: xy
+      brightness: 254
+      color_temp_kelvin:
+      hs_color:
+      - 320.488
+      - 16.078
+      rgb_color:
+      - 255
+      - 214
+      - 241
+      xy_color:
+      - 0.35
+      - 0.298
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Hue records
+      supported_features: 44
+      state: 'on'
+    light.home_hue_omniglow_striplight_1:
+      min_color_temp_kelvin: 1000
+      max_color_temp_kelvin: 20000
+      effect_list:
+      - 'off'
+      - colorloop
+      supported_color_modes:
+      - color_temp
+      - xy
+      effect: 'off'
+      color_mode: xy
+      brightness: 153
+      color_temp_kelvin:
+      hs_color:
+      - 340.216
+      - 72.549
+      rgb_color:
+      - 255
+      - 70
+      - 131
+      xy_color:
+      - 0.562
+      - 0.263
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Philips Hue OmniGlow lightstrip
+      supported_features: 44
+      state: 'on'
+    light.home_hue_flux_strip_light_1:
+      min_color_temp_kelvin: 1000
+      max_color_temp_kelvin: 20000
+      effect_list:
+      - 'off'
+      - colorloop
+      supported_color_modes:
+      - color_temp
+      - xy
+      effect: 'off'
+      color_mode: xy
+      brightness: 227
+      color_temp_kelvin:
+      hs_color:
+      - 210.194
+      - 60.784
+      rgb_color:
+      - 100
+      - 177
+      - 255
+      xy_color:
+      - 0.182
+      - 0.219
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Signify Netherlands B.V. 929004610602
+      supported_features: 44
+      state: 'on'
+    light.couch:
+      min_color_temp_kelvin: 15
+      max_color_temp_kelvin: 6535
+      supported_color_modes:
+      - color_temp
+      - hs
+      - xy
+      color_mode: hs
+      brightness: 255
+      color_temp_kelvin:
+      hs_color:
+      - 138.898
+      - 100
+      rgb_color:
+      - 0
+      - 255
+      - 80
+      xy_color:
+      - 0.169
+      - 0.678
+      icon: mdi:led-strip-variant
+      friendly_name: under couch
+      supported_features: 32
+      state: 'on'
+    light.downlights:
+      supported_color_modes:
+      - brightness
+      color_mode:
+      brightness:
+      off_with_transition: false
+      off_brightness: 20
+      friendly_name: Downlights
+      supported_features: 40
+      state: 'off'
+  metadata:
+    light.bar_lights:
+      entity_only: true
+    light.hue_play_1:
+      entity_only: true
+    light.hue_play_3:
+      entity_only: true
+    light.hue_play_2:
+      entity_only: true
+    light.couch:
+      entity_only: true
+    light.downlights:
+      entity_only: true
+- id: '1779479530222'
+  name: White
+  entities:
+    light.bar_lights:
+      supported_color_modes:
+      - onoff
+      color_mode: onoff
+      entity_id:
+      - light.bar_dog
+      - light.bar_spotlights
+      icon: mdi:lightbulb-group
+      friendly_name: 'Bar lights '
+      supported_features: 0
+      state: 'on'
+    light.couch:
+      min_color_temp_kelvin: 15
+      max_color_temp_kelvin: 6535
+      supported_color_modes:
+      - color_temp
+      - hs
+      - xy
+      color_mode: color_temp
+      brightness: 255
+      color_temp_kelvin: 6535
+      hs_color:
+      - 54.768
+      - 1.6
+      rgb_color:
+      - 255
+      - 255
+      - 251
+      xy_color:
+      - 0.325
+      - 0.333
+      icon: mdi:sofa-outline
+      friendly_name: under couch
+      supported_features: 32
+      state: 'on'
+    light.hue_play:
+      min_color_temp_kelvin: 2000
+      max_color_temp_kelvin: 6535
+      effect_list:
+      - candle
+      - cosmos
+      - enchant
+      - fire
+      - glisten
+      - 'off'
+      - opal
+      - prism
+      - sparkle
+      - sunbeam
+      - sunrise
+      - sunset
+      - underwater
+      supported_color_modes:
+      - color_temp
+      - xy
+      effect: 'off'
+      color_mode: color_temp
+      brightness: 255
+      color_temp_kelvin: 5025
+      hs_color:
+      - 27.028
+      - 18.905
+      rgb_color:
+      - 255
+      - 229
+      - 207
+      xy_color:
+      - 0.37
+      - 0.35
+      entity_id:
+      - light.hue_play_2
+      - light.hue_play_3
+      - light.hue_play_1
+      icon: mdi:television-ambient-light
+      friendly_name: 'Hue play '
+      supported_features: 44
+      state: 'on'
+    light.club_led_group:
+      min_color_temp_kelvin: 1000
+      max_color_temp_kelvin: 20000
+      effect_list:
+      - candle
+      - cosmos
+      - enchant
+      - fire
+      - glisten
+      - 'off'
+      - opal
+      - prism
+      - sparkle
+      - sunbeam
+      - sunrise
+      - sunset
+      - underwater
+      supported_color_modes:
+      - color_temp
+      - xy
+      effect: 'off'
+      color_mode: color_temp
+      brightness: 255
+      color_temp_kelvin: 5586
+      hs_color:
+      - 28.213
+      - 11.817
+      rgb_color:
+      - 255
+      - 239
+      - 225
+      xy_color:
+      - 0.351
+      - 0.342
+      entity_id:
+      - light.home_hue_omniglow_striplight_1
+      - light.home_hue_flux_strip_light_1
+      icon: mdi:lightbulb-group
+      friendly_name: Club led Group
+      supported_features: 44
+      state: 'on'
+    light.downlights:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 150
+      off_with_transition: false
+      off_brightness:
+      icon: mdi:wall-sconce-flat
+      friendly_name: Downlights
+      supported_features: 40
+      state: 'on'
+    light.kitchen_console_candles:
+      supported_color_modes:
+      - onoff
+      color_mode: onoff
+      friendly_name: Console candles
+      supported_features: 0
+      state: 'on'
+    light.kitchen_art:
+      supported_color_modes:
+      - onoff
+      color_mode: onoff
+      off_with_transition: false
+      off_brightness:
+      friendly_name: Kitchen art
+      supported_features: 8
+      state: 'on'
+    light.art_group:
+      supported_color_modes:
+      - brightness
+      color_mode: brightness
+      brightness: 254
+      entity_id:
+      - light.club_art_pendants
+      icon: mdi:lightbulb-group
+      friendly_name: Art Lights
+      supported_features: 40
+      state: 'on'
+  metadata:
+    light.bar_lights:
+      entity_only: true
+    light.couch:
+      entity_only: true
+    light.hue_play:
+      entity_only: true
+    light.club_led_group:
+      entity_only: true
+    light.downlights:
+      entity_only: true
+    light.kitchen_console_candles:
+      entity_only: true
+    light.kitchen_art:
+      entity_only: true
+    light.art_group:
+      entity_only: true
+- id: bed_morning_20261005
+  name: Bed morning
+  icon: mdi:weather-sunset-up
+  entities:
+    light.bedroom_lights:
+      state: 'on'
+      brightness: 77
+    light.bed_lamp_left:
+      state: 'on'
+      brightness: 102
+    light.bed_lamp_right:
+      state: 'on'
+      brightness: 102
+    light.bedroom_led_strip:
+      state: 'on'
+    light.bedroom_candles:
+      state: 'off'
+    light.bedroom_cupboard_light_ueb:
+      state: 'off'
+- id: bed_day_20261005
+  name: Bed day
+  icon: mdi:weather-sunny
+  entities:
+    light.bedroom_lights:
+      state: 'on'
+      brightness: 204
+    light.bed_lamp_left:
+      state: 'off'
+    light.bed_lamp_right:
+      state: 'off'
+    light.bedroom_led_strip:
+      state: 'off'
+    light.bedroom_candles:
+      state: 'off'
+    light.bedroom_cupboard_light_ueb:
+      state: 'off'
+- id: bed_night_20261005
+  name: Bed night
+  icon: mdi:weather-night
+  entities:
+    light.bedroom_lights:
+      state: 'off'
+    light.bed_lamp_left:
+      state: 'on'
+      brightness: 64
+    light.bed_lamp_right:
+      state: 'on'
+      brightness: 64
+    light.bedroom_led_strip:
+      state: 'on'
+    light.bedroom_candles:
+      state: 'on'
+    light.bedroom_cupboard_light_ueb:
+      state: 'off'
+- id: bed_night_motion_20261005
+  name: Bed night motion
+  icon: mdi:walk
+  entities:
+    light.bedroom_lights:
+      state: 'off'
+    light.bed_lamp_left:
+      state: 'on'
+      brightness: 13
+    light.bed_lamp_right:
+      state: 'on'
+      brightness: 13
+    light.bedroom_led_strip:
+      state: 'off'
+    light.bedroom_candles:
+      state: 'off'
+    light.bedroom_cupboard_light_ueb:
+      state: 'off'

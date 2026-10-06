@@ -1,0 +1,847 @@
+all_lights_off_script:
+  sequence:
+  - action: light.turn_off
+    metadata: {}
+    target:
+      area_id:
+      - club
+      - kitchen
+      - bedroom
+      - office
+      - bathroom
+      - bar
+    data: {}
+  alias: All Lights Off Script
+  description: ''
+increase_club_brightness_on_lights_only:
+  alias: Increase Club Brightness (On Lights Only)
+  sequence:
+  - target:
+      entity_id: '{{ expand(area_entities(''club'')) | selectattr(''domain'', ''eq'',
+        ''light'') | selectattr(''state'', ''eq'', ''on'') | map(attribute=''entity_id'')
+        | list }}
+
+        '
+    data:
+      brightness_step_pct: 10
+    action: light.turn_on
+  description: ''
+decrease_club_brightness_on_lights_only:
+  alias: Decrease Club Brightness (On Lights Only)
+  sequence:
+  - target:
+      entity_id: '{{ expand(area_entities(''club'')) | selectattr(''domain'', ''eq'',
+        ''light'') | selectattr(''state'', ''eq'', ''on'') | map(attribute=''entity_id'')
+        | list }}
+
+        '
+    data:
+      brightness_step_pct: -10
+    action: light.turn_on
+  description: ''
+play_disco:
+  sequence:
+  - action: media_player.play_media
+    metadata: {}
+    target:
+      entity_id: media_player.club
+    data:
+      media:
+        media_content_id: FV:2/7
+        media_content_type: favorite_item_id
+        metadata:
+          title: 'Defected ITH 2017 Glitterbox - A Disco Hi #2'
+          thumbnail: http://<device-ip>:1400/getaa?u=x-file-cifs://<device-ip>/music/Defected/Defected%202017%20Glitterbox%20-%20A%20Disco%20Hi%202.mp3&v=1
+          media_class: track
+          children_media_class:
+          navigateIds:
+          - {}
+          - media_content_type: favorites
+            media_content_id: ''
+          - media_content_type: favorites_folder
+            media_content_id: object.item.audioItem.musicTrack
+          browse_entity_id: media_player.club
+  alias: Play Disco
+  description: ''
+play_house:
+  sequence:
+  - action: media_player.play_media
+    metadata: {}
+    target:
+      entity_id: media_player.club
+    data:
+      media:
+        media_content_id: FV:2/10
+        media_content_type: favorite_item_id
+        metadata:
+          title: IBIZA Best Vocal House Mix By Dj Tango JUNE 2019 Vol.2
+          thumbnail: https://i.ytimg.com/vi/rFTQ3IIL05Q/hqdefault.jpg?sqp=-oaymwEWCMACELQBIAQqCghQEJADGFogjgJIWg&rs=AMzJL3mFTyVUslQOCh22Frloq25q6qXVWw
+          media_class: track
+          children_media_class:
+          navigateIds:
+          - {}
+          - media_content_type: favorites
+            media_content_id: ''
+          - media_content_type: favorites_folder
+            media_content_id: object.item.audioItem.musicTrack
+          browse_entity_id: media_player.club
+  alias: Play House
+  description: ''
+play_mos:
+  sequence:
+  - action: media_player.play_media
+    metadata: {}
+    target:
+      entity_id: media_player.club
+    data:
+      media:
+        media_content_id: S://<device-ip>/music/Various%20artists%20-%20The%20Annual%202026,%20%20Disc%201
+        media_content_type: directory
+        metadata:
+          title: Various artists - The Annual 2026,  Disc 1
+          thumbnail:
+          media_class: directory
+          children_media_class:
+          navigateIds:
+          - {}
+          - media_content_type: library
+            media_content_id: ''
+          - media_content_type: directory
+            media_content_id: 'S:'
+          - media_content_type: directory
+            media_content_id: S://<device-ip>/music
+          browse_entity_id: media_player.club
+  alias: Play MOS
+  description: ''
+play_dj:
+  sequence:
+  - action: media_player.play_media
+    metadata: {}
+    target:
+      entity_id: media_player.club
+    data:
+      media:
+        media_content_id: S://<device-ip>/music/argonaught
+        media_content_type: directory
+        metadata:
+          title: argonaught
+          thumbnail:
+          media_class: directory
+          children_media_class:
+          navigateIds:
+          - {}
+          - media_content_type: library
+            media_content_id: ''
+          - media_content_type: directory
+            media_content_id: 'S:'
+          - media_content_type: directory
+            media_content_id: S://<device-ip>/music
+          browse_entity_id: media_player.club
+  alias: Play DJ
+  description: ''
+group_sonos:
+  alias: Ungroup
+  description: Same as script.ungroup_sonos - unjoin every speaker grouped with the
+    Club.
+  sequence:
+  - action: script.ungroup_sonos
+  mode: single
+ungroup_sonos:
+  alias: Ungroup
+  description: Unjoin every speaker currently grouped with the Club. (Rewritten 2026-10-05.)
+  sequence:
+  - variables:
+      members: "{{ state_attr('media_player.club', 'group_members') | default([],
+        true)\n   | reject('eq', 'media_player.club') | list }}"
+  - condition: template
+    value_template: '{{ members | count > 0 }}'
+  - action: media_player.unjoin
+    target:
+      entity_id: '{{ members }}'
+  mode: single
+play_pdm:
+  sequence:
+  - action: media_player.play_media
+    metadata: {}
+    target:
+      entity_id: media_player.club
+    data:
+      media:
+        media_content_id: FV:2/9
+        media_content_type: favorite_item_id
+        metadata:
+          title: Welcome to Paradise (DJ-Set)
+          thumbnail: https://i.ytimg.com/vi/lqcosHDoGRs/hq720.jpg?sqp=-oaymwEXCKAGEMIDIAQqCwjVARCqCBh4INgESFo&rs=AMzJL3kmacLMUOEd33jakjbs0DDNeeiP7A
+          media_class: track
+          children_media_class:
+          navigateIds:
+          - {}
+          - media_content_type: favorites
+            media_content_id: ''
+          - media_content_type: favorites_folder
+            media_content_id: object.item.audioItem.musicTrack
+          browse_entity_id: media_player.club
+  alias: Play PDM
+  description: ''
+play_dfp:
+  sequence:
+  - action: media_player.play_media
+    metadata: {}
+    target:
+      entity_id: media_player.club
+    data:
+      media:
+        media_content_id: FV:2/26
+        media_content_type: favorite_item_id
+        metadata:
+          title: Dimitri From Paris Boiler Room London DJ Set
+          thumbnail: https://i1.sndcdn.com/artworks-000146862962-qbs58h-original.jpg
+          media_class: track
+          children_media_class:
+          navigateIds:
+          - {}
+          - media_content_type: favorites
+            media_content_id: ''
+          - media_content_type: favorites_folder
+            media_content_id: object.item.audioItem.musicTrack
+          browse_entity_id: media_player.club
+  alias: Play DFP
+  description: ''
+bae_2:
+  sequence:
+  - action: scene.turn_on
+    metadata: {}
+    target:
+      entity_id: scene.home_home_disturbia_2
+    data: {}
+  - action: light.turn_on
+    metadata: {}
+    target:
+      entity_id: light.couch
+    data:
+      rgb_color:
+      - 0
+      - 255
+      - 111
+      brightness_pct: 100
+  - action: light.turn_on
+    metadata: {}
+    target:
+      entity_id: light.art_group
+    data:
+      brightness_pct: 75
+  - action: light.turn_on
+    metadata: {}
+    target:
+      entity_id:
+      - light.bar_lights
+      - light.kitchen_console_candles
+    data: {}
+  alias: Bae
+  description: ''
+day:
+  sequence:
+  - action: scene.turn_on
+    metadata: {}
+    target:
+      entity_id: scene.home_home_santorini
+    data: {}
+  - action: light.turn_on
+    metadata: {}
+    target:
+      entity_id: light.art_group
+    data:
+      brightness_pct: 100
+  - action: light.turn_on
+    metadata: {}
+    target:
+      entity_id: light.couch
+    data:
+      color_temp_kelvin: 5431
+      brightness_pct: 100
+  - action: light.turn_on
+    metadata: {}
+    target:
+      entity_id: light.bar_lights
+    data: {}
+  - action: light.turn_on
+    metadata: {}
+    target:
+      entity_id:
+      - light.kitchen_console_candles
+      - light.kitchen_led
+      - light.kitchen_art
+    data: {}
+  - action: light.turn_on
+    metadata: {}
+    target:
+      entity_id:
+      - light.bedroom_led_strip
+      - light.bedlamps
+      - light.bedroom_lights
+    data: {}
+  alias: Day
+  description: ''
+gay:
+  sequence:
+  - action: scene.turn_on
+    metadata: {}
+    target:
+      entity_id:
+      - scene.home_home_gayyyy
+    data: {}
+  - action: light.turn_on
+    metadata: {}
+    target:
+      entity_id: light.couch
+    data:
+      effect: Pastel colors
+  - action: light.turn_on
+    metadata: {}
+    target:
+      entity_id: light.art_group
+    data:
+      brightness_pct: 75
+  - action: light.turn_on
+    metadata: {}
+    target:
+      entity_id:
+      - light.bar_lights
+      - light.kitchen_console_candles
+    data: {}
+  alias: Gay
+  description: ''
+play_trap:
+  sequence:
+  - action: media_player.play_media
+    metadata: {}
+    target:
+      entity_id: media_player.club
+    data:
+      media:
+        media_content_id: S://<device-ip>/music/MoS%20(2012)%20MaXimum%20Bass%20Turbo%20%5bAU%5d%5bFLAC%5d
+        media_content_type: directory
+        metadata:
+          title: MoS (2012) MaXimum Bass Turbo [AU][FLAC]
+          thumbnail:
+          media_class: directory
+          children_media_class:
+          navigateIds:
+          - {}
+          - media_content_type: library
+            media_content_id: ''
+          - media_content_type: directory
+            media_content_id: 'S:'
+          - media_content_type: directory
+            media_content_id: S://<device-ip>/music
+          browse_entity_id: media_player.club
+  alias: Play Trap
+  description: ''
+volume_down:
+  sequence:
+  - action: media_player.volume_down
+    metadata: {}
+    target:
+      entity_id:
+      - media_player.club
+    data: {}
+  alias: Volume Down
+  description: ''
+volume_up:
+  sequence:
+  - action: media_player.volume_up
+    metadata: {}
+    target:
+      entity_id:
+      - media_player.club
+    data: {}
+  alias: Volume Up
+  description: ''
+open_blinds:
+  sequence:
+  - action: cover.open_cover
+    metadata: {}
+    target:
+      entity_id: cover.blinds
+      device_id: <device-id>
+    data: {}
+  alias: Open Blinds
+  description: ''
+close_blinds:
+  sequence:
+  - action: cover.close_cover
+    metadata: {}
+    target:
+      entity_id: cover.blinds
+      device_id: <device-id>
+    data: {}
+  alias: Close Blinds
+  description: ''
+long_lights:
+  sequence:
+  - action: light.turn_off
+    metadata: {}
+    target:
+      area_id:
+      - club
+      - kitchen
+      - bedroom
+      - office
+      - bathroom
+      - home
+      - bar
+    data: {}
+  alias: long lights
+  description: ''
+long_aircon:
+  alias: Long Aircon
+  sequence:
+  - action: climate.toggle
+    target:
+      entity_id: climate.aircon
+  description: ''
+long_curtain:
+  alias: long curtain
+  sequence:
+  - if:
+    - condition: state
+      entity_id: media_player.55_the_serif_3
+      state: 'off'
+    then:
+    - action: media_player.turn_on
+      target:
+        entity_id: media_player.55_the_serif_3
+    - delay:
+        seconds: 2
+    - action: media_player.select_source
+      target:
+        entity_id: media_player.55_the_serif_3
+      data:
+        source: hdmi4
+    else:
+    - action: media_player.select_source
+      target:
+        entity_id: media_player.55_the_serif_3
+      data:
+        source: hdmi4
+long_music:
+  sequence:
+  - action: media_player.select_source
+    target:
+      entity_id: media_player.club
+    data:
+      source: TV
+  alias: long music
+  description: ''
+long_red:
+  sequence:
+  - action: script.bae_2
+    metadata: {}
+    data: {}
+  alias: long red
+  description: ''
+long_green:
+  sequence:
+  - action: script.gay
+    metadata: {}
+    data: {}
+  alias: long green
+  description: ''
+long_blue:
+  sequence:
+  - action: scene.turn_on
+    metadata: {}
+    target:
+      entity_id: scene.night
+    data: {}
+  alias: long blue
+  description: ''
+long_yellow:
+  sequence:
+  - action: script.day
+    metadata: {}
+    data: {}
+  alias: long yellow
+  description: ''
+club_lights_club_strobe:
+  alias: 'Club Lights: Club Strobe'
+  icon: mdi:flash-alert
+  description: 'Beat strobe in Disturbia at full impact. Saves the current look first
+    so Club Lights: Restore can put it back.'
+  sequence:
+  - action: scene.create
+    data:
+      scene_id: club_lights_before_strobe
+      snapshot_entities:
+      - input_select.club_lights_palette
+      - input_select.club_lights_mode
+      - input_number.club_lights_speed
+      - input_number.club_lights_intensity
+      - input_number.club_lights_brightness
+  - action: input_boolean.turn_on
+    target:
+      entity_id: input_boolean.club_lights
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.club_lights_palette
+    data:
+      option: Disturbia
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.club_lights_mode
+    data:
+      option: Club Strobe
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.club_lights_speed
+    data:
+      value: 200
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.club_lights_intensity
+    data:
+      value: 150
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.club_lights_brightness
+    data:
+      value: 100
+  - if:
+    - condition: template
+      value_template: '{{ is_state("media_player.club_2","playing") and "media_player.club_lights"
+        not in (state_attr("media_player.club_2","group_members") or []) }}'
+    then:
+    - action: media_player.join
+      target:
+        entity_id: media_player.club_2
+      data:
+        group_members:
+        - media_player.club_lights
+      continue_on_error: true
+  mode: single
+club_lights_restore:
+  alias: 'Club Lights: Restore'
+  icon: mdi:restore
+  description: Put back the palette/mode/speed/intensity/brightness from before Club
+    Strobe.
+  sequence:
+  - action: scene.turn_on
+    target:
+      entity_id: scene.club_lights_before_strobe
+    continue_on_error: true
+  mode: single
+club_blinds_all:
+  alias: Club blind · toggle (hold CURTAIN)
+  description: 'Created for the Astrion remotes (hold CURTAIN, and the voice shortcut
+    ''blinds''). Toggles the Club blind (cover.blinds) only. That Tuya blind reports
+    its state inverted: HA shows ''open'' after close_blinds and ''closed'' after
+    open_blinds, so ''open'' here means physically shut, and the script opens it,
+    and vice versa.'
+  mode: single
+  icon: mdi:blinds
+  sequence:
+  - action: '{{ ''cover.open_cover'' if is_state(''cover.blinds'',''open'') else ''cover.close_cover''
+      }}'
+    target:
+      entity_id: cover.blinds
+work_alarm_stop_and_start_day:
+  alias: Work alarm · stop and start the day
+  description: Created for the Astrion remotes (alarm popup Stop). Stops the alarm
+    as before, then puts ABC iview on the Club TV; Sonos follows the TV on its own.
+  mode: single
+  icon: mdi:alarm-off
+  sequence:
+  - action: script.work_alarm_stop
+  - action: androidtv.adb_command
+    target:
+      entity_id: media_player.club_android_tv_10_0_0_248_club_tv
+    data:
+      command: input keyevent KEYCODE_WAKEUP; sleep 1; cmd hdmi_control onetouchplay;
+        monkey -p au.net.abc.iview -c android.intent.category.LEANBACK_LAUNCHER 1
+tv_eye_comfort_toggle:
+  alias: Serif TV · Eye Comfort toggle
+  description: Created for the Astrion remotes (IR popup button). MENU opens the TV's
+    settings panel with the Eye Comfort Mode chip first and focused; ENTER opens its
+    settings with the on/off toggle focused; ENTER flips it; three RETURNs 1.5 s apart
+    close the menu (the first is swallowed by the toggle page; EXIT would also leave
+    the current input). Not on the PC input (hdmi2), where the TV greys Eye Comfort
+    out. Sequence confirmed on the TV 2026-10-04.
+  mode: single
+  icon: mdi:eye-outline
+  sequence:
+  - condition: template
+    value_template: '{{ is_state(''media_player.55_the_serif_3'',''on'') and state_attr(''media_player.55_the_serif_3'',''source'')
+      != ''hdmi2'' }}'
+  - action: remote.send_command
+    target:
+      entity_id: remote.the_serif_qa55ls01dawxxy
+    data:
+      command: KEY_MENU
+  - delay:
+      milliseconds: 1800
+  - action: remote.send_command
+    target:
+      entity_id: remote.the_serif_qa55ls01dawxxy
+    data:
+      command: KEY_ENTER
+  - delay:
+      milliseconds: 1500
+  - action: remote.send_command
+    target:
+      entity_id: remote.the_serif_qa55ls01dawxxy
+    data:
+      command: KEY_ENTER
+  - delay:
+      milliseconds: 2000
+  - action: remote.send_command
+    target:
+      entity_id: remote.the_serif_qa55ls01dawxxy
+    data:
+      command: KEY_RETURN
+  - delay:
+      milliseconds: 1500
+  - action: remote.send_command
+    target:
+      entity_id: remote.the_serif_qa55ls01dawxxy
+    data:
+      command: KEY_RETURN
+  - delay:
+      milliseconds: 1500
+  - action: remote.send_command
+    target:
+      entity_id: remote.the_serif_qa55ls01dawxxy
+    data:
+      command: KEY_RETURN
+notify_bae:
+  alias: Notify Bae
+  description: Single entry point for phone notifications (added 2026-10-05). Automations
+    start it with script.turn_on, so they never wait on it and a failed notification
+    can never stop them. Each target is sent separately with continue_on_error, so
+    one failing target doesn't stop the others. Queued (not parallel) so a clear_notification
+    can't overtake the notification it is meant to clear. To change phones, edit default_targets
+    below.
+  mode: queued
+  max: 50
+  max_exceeded: warning
+  icon: mdi:cellphone-message
+  fields:
+    message:
+      description: Notification text, or clear_notification.
+      required: true
+      selector:
+        text:
+          multiline: true
+    title:
+      description: Optional title.
+      selector:
+        text: {}
+    data:
+      description: Optional mobile_app data (tag, channel, actions, image, ...).
+      selector:
+        object: {}
+    targets:
+      description: Optional list of notify actions; defaults to Bae's phone.
+      selector:
+        object: {}
+  sequence:
+  - variables:
+      default_targets:
+      - notify.mobile_app_motorola_razr_50
+      send_to: '{% set t = targets if targets is defined and targets else default_targets
+        %} {{ [t] if t is string else t | list }}'
+      extra: '{{ data if data is defined and data is mapping else {} }}'
+      has_title: '{{ title is defined and title is not none and title | string | length
+        > 0 }}'
+  - repeat:
+      for_each: '{{ send_to }}'
+      sequence:
+      - if: '{{ has_title }}'
+        then:
+        - action: '{{ repeat.item }}'
+          continue_on_error: true
+          data:
+            title: '{{ title }}'
+            message: '{{ message }}'
+            data: '{{ extra }}'
+        else:
+        - action: '{{ repeat.item }}'
+          continue_on_error: true
+          data:
+            message: '{{ message }}'
+            data: '{{ extra }}'
+radar_presence_resume:
+  alias: Radar presence · resume after a robot clean
+  description: Turns back on the radar-driven automations that a robot-vacuum run
+    pauses (the radars see a robot as a person). Used by Roborock · clean while away
+    and the SL68 follow-up cleans. Added 2026-10-05.
+  mode: single
+  icon: mdi:radar
+  sequence:
+  - action: radar_map_manager.reset_tracking_history
+    data: {}
+    continue_on_error: true
+  - delay: 00:00:20
+  - action: automation.turn_on
+    target:
+      entity_id:
+      - automation.rmm_kitchen_presence_light
+      - automation.rmm_office_presence_light
+      - automation.rmm_wardrobe_presence_light
+      - automation.rmm_bedroom_presence_light
+      - automation.rmm_bathroom_light_with_shower_hold
+      - automation.rmm_couch_light
+      - automation.rmm_console_candles
+      - automation.rmm_night_path_to_bathroom
+      - automation.rmm_fell_asleep_all_lights_off
+      - automation.rmm_sonos_follows_you
+      - automation.rmm_guest_mode_auto
+      - automation.rmm_fall_alert
+      - automation.rmm_ambient_day_lights
+      - automation.rmm_ld2450_ghost_auto_recover
+sl68_smart_clean_once:
+  alias: SL68 · one smart clean
+  description: Starts one SL68 smart clean and waits for it to dock again. Returns
+    ok=true only if it started, docked again (for 2 min) and never reported a problem.
+    Bails out if you're home, it isn't ready, or go is false. Used by sl68_followup_clean.
+  mode: single
+  icon: mdi:robot-vacuum
+  fields:
+    go:
+      description: Set false to skip this run (returns ok=false straight away).
+      default: true
+      selector:
+        boolean: {}
+  sequence:
+  - if: '{{ go is defined and not go }}'
+    then:
+    - variables:
+        result:
+          ok: false
+          reason: skipped because the first clean didn't finish cleanly
+    - stop: Skipped
+      response_variable: result
+  - if:
+    - condition: template
+      value_template: "{{ not is_state('input_boolean.away_mode', 'on')\n   or not
+        is_state('vacuum.sl68', 'docked')\n   or not is_state('binary_sensor.sl68_problem',
+        'off')\n   or states('sensor.sl68_battery') | int(0) < 50 }}"
+    then:
+    - variables:
+        result:
+          ok: false
+          reason: '{%- if not is_state(''input_boolean.away_mode'', ''on'') -%}you
+            came home {%- elif not is_state(''binary_sensor.sl68_problem'', ''off'')
+            -%}it is reporting a problem {%- elif not is_state(''vacuum.sl68'', ''docked'')
+            -%}it was {{ states(''vacuum.sl68'') }}, not docked {%- else -%}its battery
+            was only {{ states(''sensor.sl68_battery'') }}%{%- endif -%}'
+    - stop: SL68 not ready
+      response_variable: result
+  - action: vacuum.send_command
+    target:
+      entity_id: vacuum.sl68
+    data:
+      command: smart
+  - alias: Confirm it actually left the dock
+    wait_for_trigger:
+    - trigger: state
+      entity_id: vacuum.sl68
+      from: docked
+    timeout: 00:02:00
+    continue_on_timeout: true
+  - if: '{{ wait.trigger is none }}'
+    then:
+    - variables:
+        result:
+          ok: false
+          reason: it didn't start (still {{ states('vacuum.sl68') }})
+    - stop: SL68 did not start
+      response_variable: result
+  - wait_for_trigger:
+    - trigger: state
+      entity_id: vacuum.sl68
+      to: docked
+      for: 00:02:00
+      id: docked
+    - trigger: state
+      entity_id: binary_sensor.sl68_problem
+      to: 'on'
+      id: problem
+    - trigger: state
+      entity_id: vacuum.sl68
+      to: error
+      id: error
+    - trigger: state
+      entity_id: input_boolean.away_mode
+      to: 'off'
+      id: home
+    timeout: 03:00:00
+    continue_on_timeout: true
+  - variables:
+      how: '{{ wait.trigger.id if wait.trigger else ''timeout'' }}'
+      result:
+        ok: '{{ how == ''docked'' and is_state(''binary_sensor.sl68_problem'', ''off'')
+          }}'
+        reason: "{{ {'docked': 'finished', 'problem': 'it reported a problem', 'error':
+          'it hit an error',\n    'home': 'you came home', 'timeout': 'it was still
+          going after 3 h'}[how] }}"
+        area: '{{ states(''sensor.sl68_cleaning_area'') }}'
+        minutes: '{{ states(''sensor.sl68_cleaning_time'') }}'
+  - stop: SL68 smart clean ended
+    response_variable: result
+sl68_followup_clean:
+  alias: SL68 · follow-up smart cleans after the Roborock
+  description: Started by "Roborock · clean while away" when the Roborock finishes
+    cleanly while you're out. Runs an SL68 smart clean, and if that finishes without
+    a problem, runs a second one. The radar automations stay paused until it's done,
+    then radar_presence_resume turns them back on. Added 2026-10-05.
+  mode: single
+  icon: mdi:robot-vacuum
+  sequence:
+  - action: script.turn_on
+    target:
+      entity_id: script.notify_bae
+    data:
+      variables:
+        title: SL68
+        message: Roborock finished cleanly — SL68 starting a smart clean (1 of 2).
+        data:
+          tag: sl68_away
+          group: roborock
+          channel: Roborock
+  - action: script.sl68_smart_clean_once
+    response_variable: run1
+    continue_on_error: true
+  - variables:
+      ok1: '{{ run1 is defined and run1 is mapping and run1.ok | default(false) }}'
+  - action: script.sl68_smart_clean_once
+    data:
+      go: '{{ ok1 }}'
+    response_variable: run2
+    continue_on_error: true
+  - variables:
+      ok2: '{{ run2 is defined and run2 is mapping and run2.ok | default(false) }}'
+      r1: '{{ run1.reason if run1 is defined and run1 is mapping else ''the script
+        errored'' }}'
+      r2: '{{ run2.reason if run2 is defined and run2 is mapping else ''the script
+        errored'' }}'
+      still_out: '{{ states(''vacuum.sl68'') in [''cleaning'', ''returning'', ''paused'']
+        }}'
+  - action: script.radar_presence_resume
+    continue_on_error: true
+  - action: script.turn_on
+    target:
+      entity_id: script.notify_bae
+    data:
+      variables:
+        title: '{{ ''SL68 finished'' if ok1 and ok2 else ''SL68 stopped early'' }}'
+        message: '{%- if ok1 and ok2 -%}Both smart cleans finished without problems
+          ({{ run1.area }} m² / {{ run1.minutes }} min, then {{ run2.area }} m² /
+          {{ run2.minutes }} min). {%- elif ok1 -%}Clean 1 finished ({{ run1.area
+          }} m²); clean 2 stopped: {{ r2 }}. {%- else -%}Clean 1 stopped: {{ r1 }}.
+          Skipped the second clean.{%- endif -%}'
+        data:
+          tag: sl68_away
+          group: roborock
+          channel: Roborock
+          actions: '{{ [{''action'': ''RR_SL68_HOME'', ''title'': ''Send SL68 to dock''}]
+            if still_out else [] }}'

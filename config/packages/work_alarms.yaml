@@ -1,0 +1,663 @@
+# Work alarms + Club night sound — package loaded from configuration.yaml
+# (homeassistant: packages:). Added by Claude 2026-09-22.
+#
+# HOW IT WORKS
+#   sensor.work_start   = start of the next workday's shift on the work calendar.
+#                         Rules: Mon–Fri only; the day's FIRST timed event, and only
+#                         if it starts 07:00–09:30; never on a day with an all-day
+#                         RDO / PHL / "Day Off" / public holiday / leave event.
+#   Alarm 1  (default 70 min before) -> whole house, GayFM radio; self-stops after 10 min
+#   Alarm 2  (default 60 min before) -> whole house, random Sonos favourite; self-stops after 15 min
+#   WFH alarm (default 10 min before, WFH days only) -> NOT silenced by "stop for
+#             today"; only the master switch turns it off. Self-stops after 10 min.
+#   Lights: alarm 1 fades the house to "Day" (Santorini + the Day script's lights) over
+#   2 min, falling back to scene.white if Day doesn't take. Alarm 2 retries only if
+#   alarm 1's lights didn't succeed. Separate automation from the music on purpose:
+#   a light failure can never stop an alarm ringing. (Replaces the sunrise branch
+#   of "RMM: Weekday scene schedule", removed 2026-09-22.)
+#   Self-stop only pauses that alarm — later alarms still ring. Snoozing restarts the count.
+#   Only rings while Bae is home. Volume on every speaker = input_number (30%).
+#
+# CONTROLS (dashboard, phone notification buttons, or call from anything)
+#   script.work_alarm_snooze        pause 5 min, then resume
+#   script.work_alarm_stop          stop now + skip the rest of today's alarms
+#   input_boolean.work_alarms_off_today   same "stop for today" as a toggle
+#   input_boolean.work_alarms_enabled     master switch (off = no alarms at all)
+#   input_number.work_alarm_*_minutes     how early each alarm goes off
+#
+# Sonos favourite IDs below are the playable ones as of 2026-09-22 (unavailable
+# ones — 7, 18, 19, 40, 42, 44 — left out). Re-check if favourites change.
+
+
+input_boolean:
+  work_alarms_enabled:
+    name: Work alarms enabled
+    icon: mdi:alarm-check
+  work_alarms_off_today:
+    name: Work alarms off for today
+    icon: mdi:alarm-off
+  work_alarm_ringing:
+    name: Work alarm ringing
+    icon: mdi:alarm-bell
+  work_alarm_lights_done:
+    name: Work alarm lights done today
+    icon: mdi:lightbulb-auto
+
+input_number:
+  work_alarm_1_minutes:
+    name: Work alarm 1 — minutes before
+    min: 0
+    max: 180
+    step: 5
+    unit_of_measurement: min
+    icon: mdi:alarm
+  work_alarm_2_minutes:
+    name: Work alarm 2 — minutes before
+    min: 0
+    max: 180
+    step: 5
+    unit_of_measurement: min
+    icon: mdi:alarm
+  work_alarm_wfh_minutes:
+    name: WFH alarm — minutes before
+    min: 0
+    max: 60
+    step: 5
+    unit_of_measurement: min
+    icon: mdi:home-clock
+  work_alarm_volume:
+    name: Work alarm volume
+    min: 5
+    max: 60
+    step: 5
+    unit_of_measurement: "%"
+    icon: mdi:volume-medium
+
+input_text:
+  work_alarm_stage:
+    name: Work alarm stage
+    max: 10
+    icon: mdi:alarm
+
+timer:
+  work_alarm_snooze:
+    name: Work alarm snooze
+    duration: "00:05:00"
+    icon: mdi:alarm-snooze
+  work_alarm_autostop:
+    name: Work alarm auto-stop
+    duration: "00:10:00"
+    icon: mdi:timer-stop
+
+template:
+  - triggers:
+      - trigger: homeassistant
+        event: start
+      - trigger: event
+        event_type: event_template_reloaded
+      - trigger: time_pattern
+        minutes: "/10"
+      # Google Calendar often loads after this template at HA start; refresh as soon as it does.
+      - trigger: template
+        value_template: "{{ states('calendar.work') not in ['unavailable', 'unknown'] }}"
+    conditions:
+      - condition: template
+        value_template: "{{ states('calendar.work') not in ['unavailable', 'unknown'] }}"
+    actions:
+      - action: calendar.get_events
+        target:
+          entity_id: calendar.work
+        data:
+          start_date_time: "{{ today_at('00:00') }}"
+          end_date_time: "{{ today_at('00:00') + timedelta(days=8) }}"
+        response_variable: cal
+      - variables:
+          work: >-
+            {%- set evs = cal['calendar.work']['events'] -%}
+            {%- set off_re = '\\b(rdo|phl|day off|public holiday|annual leave|leave|holiday)\\b' -%}
+            {%- set ns = namespace(off=[], rows=[], seen=[], pick=none) -%}
+            {#- Days blocked by an all-day day-off event (end date is exclusive) -#}
+            {%- for e in evs if 'T' not in e.start -%}
+              {%- if (e.summary ~ ' ' ~ (e.location | default('', true))) is search(off_re, ignorecase=True) -%}
+                {%- set s = strptime(e.start, '%Y-%m-%d') -%}
+                {%- set n = (strptime(e.end, '%Y-%m-%d') - s).days -%}
+                {%- for i in range([n, 1] | max) -%}
+                  {%- set ns.off = ns.off + [(s + timedelta(days=i)).strftime('%Y-%m-%d')] -%}
+                {%- endfor -%}
+              {%- endif -%}
+            {%- endfor -%}
+            {%- for e in evs if 'T' in e.start -%}
+              {%- set st = as_local(as_datetime(e.start)) -%}
+              {%- set ns.rows = ns.rows + [dict(ts=as_timestamp(st), day=st.strftime('%Y-%m-%d'),
+                    wd=st.weekday(), mins=st.hour * 60 + st.minute, start=st.isoformat(),
+                    summary=e.summary, location=e.location | default('', true))] -%}
+            {%- endfor -%}
+            {#- Each day's FIRST timed event counts only if it starts 07:00–09:30;
+                pick the first such day that is still ahead -#}
+            {%- for r in ns.rows | sort(attribute='ts') -%}
+              {%- if r.day not in ns.seen -%}
+                {%- set ns.seen = ns.seen + [r.day] -%}
+                {%- if ns.pick is none and 420 <= r.mins <= 570 and r.wd < 5
+                       and r.day not in ns.off and r.ts > as_timestamp(now()) -%}
+                  {%- set ns.pick = r -%}
+                {%- endif -%}
+              {%- endif -%}
+            {%- endfor -%}
+            {%- if ns.pick is none -%}{}{%- else -%}
+              {%- set text = (ns.pick.summary ~ ' ' ~ ns.pick.location) | lower -%}
+              {{ dict(ns.pick, wfh=('wfh' in text or 'work from home' in text), off_days=ns.off | unique | list) }}
+            {%- endif -%}
+    sensor:
+      - name: Work start
+        unique_id: work_alarm_work_start
+        device_class: timestamp
+        icon: mdi:briefcase-clock
+        availability: "{{ work is mapping and work.start is defined }}"
+        state: "{{ work.start }}"
+        attributes:
+          summary: "{{ work.summary if work is mapping else none }}"
+          location: "{{ work.location if work is mapping else none }}"
+          wfh: "{{ work.wfh if work is mapping else false }}"
+          skipped_days: "{{ work.off_days if work is mapping else [] }}"
+
+  - sensor:
+      - name: Work alarm 1
+        unique_id: work_alarm_1_time
+        device_class: timestamp
+        icon: mdi:alarm
+        availability: "{{ states('sensor.work_start') | as_datetime is not none }}"
+        state: >-
+          {{ (states('sensor.work_start') | as_datetime
+              - timedelta(minutes=states('input_number.work_alarm_1_minutes') | int(70))).isoformat() }}
+      - name: Work alarm 2
+        unique_id: work_alarm_2_time
+        device_class: timestamp
+        icon: mdi:alarm
+        availability: "{{ states('sensor.work_start') | as_datetime is not none }}"
+        state: >-
+          {{ (states('sensor.work_start') | as_datetime
+              - timedelta(minutes=states('input_number.work_alarm_2_minutes') | int(60))).isoformat() }}
+      - name: Work alarm WFH
+        unique_id: work_alarm_wfh_time
+        device_class: timestamp
+        icon: mdi:home-clock
+        availability: >-
+          {{ states('sensor.work_start') | as_datetime is not none
+             and state_attr('sensor.work_start', 'wfh') == true }}
+        state: >-
+          {{ (states('sensor.work_start') | as_datetime
+              - timedelta(minutes=states('input_number.work_alarm_wfh_minutes') | int(10))).isoformat() }}
+
+script:
+  work_alarm_ring:
+    alias: Work alarm · ring
+    description: Groups the whole house under the Club, sets volume, plays, and notifies the phone.
+    icon: mdi:alarm-bell
+    mode: restart
+    fields:
+      stage:
+        description: first | second | wfh
+        example: first
+        selector:
+          select:
+            options: [first, second, wfh]
+    sequence:
+      - variables:
+          vol: "{{ states('input_number.work_alarm_volume') | float(30) / 100 }}"
+          all_speakers:
+            - media_player.club
+            - media_player.bedroom_sonos
+            - media_player.office_sonos
+            - media_player.bathroom_sonos
+          # Skip any speaker that is offline, so one dead speaker can't silence the alarm.
+          speakers: "{{ all_speakers | reject('is_state', ['unavailable', 'unknown']) | list }}"
+          gayfm: https://icepool.silvacast.com/GAYFM.mp3
+          favourites: [3, 4, 5, 8, 9, 10, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 25, 26,
+                       27, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 41, 43, 45, 46, 47]
+          fav: "FV:2/{{ favourites | random }}"
+          stage: "{{ stage if stage is defined and stage in ['first', 'second', 'wfh'] else 'second' }}"
+          autostop: "{{ {'first': '00:10:00', 'second': '00:15:00', 'wfh': '00:10:00'}[stage] }}"
+          what: >-
+            {{ state_attr('sensor.work_start', 'summary') }}
+            {%- set l = state_attr('sensor.work_start', 'location') %}{{ ' (' ~ l ~ ')' if l else '' }}
+      - action: timer.cancel
+        target:
+          entity_id:
+            - timer.work_alarm_snooze
+            - timer.work_alarm_autostop
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.work_alarm_stage
+        data:
+          value: "{{ stage }}"
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.work_alarm_ringing
+      - alias: Whole house — every speaker joins the Club
+        if: "{{ 'media_player.club' in speakers and speakers | length > 1 }}"
+        then:
+          - action: media_player.join
+            continue_on_error: true
+            target:
+              entity_id: media_player.club
+            data:
+              group_members: "{{ speakers | reject('eq', 'media_player.club') | list }}"
+      - delay: "00:00:02"
+      - alias: Volume before playing, so nothing blasts
+        action: media_player.volume_mute
+        target:
+          entity_id: "{{ speakers }}"
+        data:
+          is_volume_muted: false
+      - action: media_player.volume_set
+        target:
+          entity_id: "{{ speakers }}"
+        data:
+          volume_level: "{{ vol }}"
+      - choose:
+          - alias: Alarm 1 — GayFM (falls back to a favourite if the stream won't start)
+            conditions: "{{ stage == 'first' }}"
+            sequence:
+              - action: media_player.play_media
+                target:
+                  entity_id: media_player.club
+                data:
+                  media_content_id: "{{ gayfm }}"
+                  media_content_type: music
+                continue_on_error: true
+              - wait_template: "{{ is_state('media_player.club', 'playing') }}"
+                timeout: "00:00:20"
+              - if: "{{ not wait.completed }}"
+                then:
+                  - action: media_player.play_media
+                    target:
+                      entity_id: media_player.club
+                    data:
+                      media_content_id: "{{ fav }}"
+                      media_content_type: favorite_item_id
+          - alias: WFH alarm — leave music alone if something's already playing
+            conditions: "{{ stage == 'wfh' and is_state('media_player.club', 'playing') }}"
+            sequence: []
+        default:
+          - action: media_player.play_media
+            target:
+              entity_id: media_player.club
+            data:
+              media_content_id: "{{ fav }}"
+              media_content_type: favorite_item_id
+      - alias: Self-stop if nobody touches it (10 min alarm 1 / WFH, 15 min alarm 2)
+        action: timer.start
+        target:
+          entity_id: timer.work_alarm_autostop
+        data:
+          duration: "{{ autostop }}"
+      - action: script.turn_on
+        target:
+          entity_id: script.notify_bae
+        data:
+          variables:
+            title: >-
+              {{ {'first': '⏰ Wake up', 'second': '⏰ Get up — 2nd alarm', 'wfh': '💻 WFH starts soon'}[stage] }}
+            message: >-
+              {%- set st = states('sensor.work_start') | as_datetime -%}
+              {%- if st -%}
+                {{ what }} starts at {{ (st | as_local).strftime('%-I:%M %p') }}
+                ({{ ((st - now()).total_seconds() / 60) | round | int }} min).
+              {%- else -%}Alarm{%- endif -%}
+            data:
+              tag: work_alarm
+              channel: Work alarm
+              importance: high
+              priority: high
+              ttl: 0
+              notification_icon: mdi:alarm
+              actions:
+                - action: WORK_ALARM_SNOOZE
+                  title: Snooze 5 min
+                - action: WORK_ALARM_STOP
+                  title: "{{ 'Stop' if stage == 'wfh' else 'Stop for today' }}"
+
+  work_alarm_lights:
+    alias: Work alarm · lights to Day
+    description: >-
+      Fades the house to the Day look; falls back to scene.white if none of the lights
+      came on. Every step is continue_on_error so it always finishes.
+    icon: mdi:weather-sunny
+    mode: single
+    max_exceeded: silent
+    sequence:
+      - variables:
+          check_lights:
+            - light.downlights
+            - light.couch
+            - light.bar_lights
+            - light.kitchen_console_candles
+            - light.hue_play
+            - light.club_led_group
+      - alias: Day = Santorini scene...
+        action: scene.turn_on
+        target:
+          entity_id: scene.home_home_santorini
+        data:
+          transition: 120
+        continue_on_error: true
+      - alias: ...plus the extra lights the Day script turns on
+        action: light.turn_on
+        target:
+          entity_id: light.art_group
+        data:
+          brightness_pct: 100
+          transition: 120
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: light.couch
+        data:
+          color_temp_kelvin: 5431
+          brightness_pct: 100
+          transition: 120
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id:
+            - light.bar_lights
+            - light.kitchen_console_candles
+        data:
+          transition: 120
+        continue_on_error: true
+      - delay: "00:00:15"
+      - alias: Fallback — if nothing came on, go to White
+        if: "{{ check_lights | select('is_state', 'on') | list | count == 0 }}"
+        then:
+          - action: scene.turn_on
+            target:
+              entity_id: scene.white
+            data:
+              transition: 60
+            continue_on_error: true
+          - delay: "00:00:10"
+      - alias: Only mark done if lights really are on, so alarm 2 retries otherwise
+        if: "{{ check_lights | select('is_state', 'on') | list | count > 0 }}"
+        then:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.work_alarm_lights_done
+
+  work_alarm_snooze:
+    alias: Work alarm · snooze 5 min
+    description: Pauses the alarm and resumes it in 5 minutes.
+    icon: mdi:alarm-snooze
+    mode: single
+    sequence:
+      - condition: state
+        entity_id: input_boolean.work_alarm_ringing
+        state: "on"
+      - action: media_player.media_pause
+        target:
+          entity_id: media_player.club
+        continue_on_error: true
+      - action: timer.cancel
+        target:
+          entity_id: timer.work_alarm_autostop
+      - action: timer.start
+        target:
+          entity_id: timer.work_alarm_snooze
+      - action: script.turn_on
+        target:
+          entity_id: script.notify_bae
+        data:
+          variables:
+            title: 😴 Snoozed
+            message: Back at {{ (now() + timedelta(minutes=5)).strftime('%-I:%M %p') }}.
+            data:
+              tag: work_alarm
+              channel: Work alarm
+              importance: default
+              notification_icon: mdi:alarm-snooze
+              actions:
+                - action: WORK_ALARM_STOP
+                  title: Stop for today
+
+  work_alarm_stop:
+    alias: Work alarm · stop for today
+    description: >-
+      Stops a ringing alarm and skips the rest of today's alarms (the WFH reminder
+      still rings — use the master switch to kill that too).
+    icon: mdi:alarm-off
+    mode: single
+    sequence:
+      - variables:
+          was_ringing: "{{ is_state('input_boolean.work_alarm_ringing', 'on') }}"
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.work_alarm_ringing
+      - action: timer.cancel
+        target:
+          entity_id:
+            - timer.work_alarm_snooze
+            - timer.work_alarm_autostop
+      - if: "{{ was_ringing }}"
+        then:
+          - action: media_player.media_pause
+            target:
+              entity_id: media_player.club
+            continue_on_error: true
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.work_alarms_off_today
+      - action: script.turn_on
+        target:
+          entity_id: script.notify_bae
+        data:
+          variables:
+            message: clear_notification
+            data:
+              tag: work_alarm
+
+automation:
+  - id: work_alarm_trigger
+    alias: Work alarm · go off
+    description: Rings the work alarms from sensor.work_alarm_1 / _2 / _wfh. See packages/work_alarms.yaml.
+    mode: queued
+    triggers:
+      - trigger: time
+        at: sensor.work_alarm_1
+        id: first
+      - trigger: time
+        at: sensor.work_alarm_2
+        id: second
+      - trigger: time
+        at: sensor.work_alarm_wfh
+        id: wfh
+    conditions:
+      - condition: state
+        entity_id: input_boolean.work_alarms_enabled
+        state: "on"
+      - alias: Only when someone's home to hear it
+        condition: state
+        entity_id: binary_sensor.bae_home
+        state: "on"
+      - alias: "'Stop for today' silences alarms 1 and 2, never the WFH one"
+        condition: template
+        value_template: "{{ trigger.id == 'wfh' or is_state('input_boolean.work_alarms_off_today', 'off') }}"
+    actions:
+      - action: script.work_alarm_ring
+        data:
+          stage: "{{ trigger.id }}"
+
+  - id: work_alarm_lights
+    alias: Work alarm · lights
+    description: >-
+      Alarm 1 fades the lights to Day; alarm 2 is the backup if that didn't work.
+      Deliberately independent of "Work alarm · go off" so a light failure can't
+      affect the alarm itself.
+    mode: single
+    max_exceeded: silent
+    triggers:
+      - trigger: time
+        at: sensor.work_alarm_1
+        id: first
+      - trigger: time
+        at: sensor.work_alarm_2
+        id: second
+    conditions:
+      - condition: state
+        entity_id: input_boolean.work_alarms_enabled
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.bae_home
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.work_alarms_off_today
+        state: "off"
+      - alias: Alarm 2 only retries if alarm 1's lights didn't work
+        condition: state
+        entity_id: input_boolean.work_alarm_lights_done
+        state: "off"
+    actions:
+      - action: script.work_alarm_lights
+        continue_on_error: true
+
+  - id: work_alarm_phone_buttons
+    alias: Work alarm · phone notification buttons
+    mode: queued
+    triggers:
+      - trigger: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: WORK_ALARM_SNOOZE
+        id: snooze
+      - trigger: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: WORK_ALARM_STOP
+        id: stop
+    actions:
+      - action: "script.work_alarm_{{ trigger.id }}"
+
+  - id: work_alarm_snooze_over
+    alias: Work alarm · snooze over, resume
+    mode: single
+    triggers:
+      - trigger: event
+        event_type: timer.finished
+        event_data:
+          entity_id: timer.work_alarm_snooze
+    conditions:
+      - condition: state
+        entity_id: input_boolean.work_alarm_ringing
+        state: "on"
+    actions:
+      - action: media_player.media_play
+        target:
+          entity_id: media_player.club
+      - action: timer.start
+        target:
+          entity_id: timer.work_alarm_autostop
+        data:
+          duration: >-
+            {{ '00:15:00' if is_state('input_text.work_alarm_stage', 'second') else '00:10:00' }}
+      - action: script.turn_on
+        target:
+          entity_id: script.notify_bae
+        data:
+          variables:
+            title: ⏰ Snooze over
+            message: >-
+              {%- set st = states('sensor.work_start') | as_datetime -%}
+              {{ state_attr('sensor.work_start', 'summary') }} at
+              {{ (st | as_local).strftime('%-I:%M %p') if st else '?' }}.
+            data:
+              tag: work_alarm
+              channel: Work alarm
+              importance: high
+              priority: high
+              ttl: 0
+              notification_icon: mdi:alarm
+              actions:
+                - action: WORK_ALARM_SNOOZE
+                  title: Snooze 5 min
+                - action: WORK_ALARM_STOP
+                  title: Stop for today
+
+  - id: work_alarm_autostop
+    alias: Work alarm · self-stop when ignored
+    description: >-
+      Pauses a ringing alarm after 10 min (alarm 1 / WFH) or 15 min (alarm 2) with no
+      snooze/stop. Does NOT set "off for today", so the next alarm still rings.
+    mode: single
+    triggers:
+      - trigger: event
+        event_type: timer.finished
+        event_data:
+          entity_id: timer.work_alarm_autostop
+    conditions:
+      - condition: state
+        entity_id: input_boolean.work_alarm_ringing
+        state: "on"
+    actions:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.work_alarm_ringing
+      - action: media_player.media_pause
+        target:
+          entity_id: media_player.club
+        continue_on_error: true
+      - action: script.turn_on
+        target:
+          entity_id: script.notify_bae
+        data:
+          variables:
+            message: clear_notification
+            data:
+              tag: work_alarm
+
+  - id: work_alarm_off_today_toggle
+    alias: Work alarm · "off for today" toggle silences a ringing alarm
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: input_boolean.work_alarms_off_today
+        to: "on"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.work_alarm_ringing
+        state: "on"
+    actions:
+      - action: script.work_alarm_stop
+
+  - id: work_alarm_daily_reset
+    alias: Work alarm · reset at midnight
+    mode: single
+    triggers:
+      - trigger: time
+        at: "00:00:00"
+    actions:
+      - action: timer.cancel
+        target:
+          entity_id:
+            - timer.work_alarm_snooze
+            - timer.work_alarm_autostop
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.work_alarms_off_today
+            - input_boolean.work_alarm_ringing
+            - input_boolean.work_alarm_lights_done
+
+  - id: club_night_sound_schedule
+    alias: Club night sound · on 8pm, off 8am
+    description: Also re-applies after a restart, in case HA was down at 8pm/8am.
+    mode: single
+    triggers:
+      - trigger: time
+        at: "20:00:00"
+      - trigger: time
+        at: "08:00:00"
+      - trigger: homeassistant
+        event: start
+    actions:
+      - delay: "{{ '00:01:00' if trigger.platform == 'homeassistant' else '00:00:00' }}"
+      - action: "switch.turn_{{ 'on' if now().hour >= 20 or now().hour < 8 else 'off' }}"
+        target:
+          entity_id: switch.club_night_sound

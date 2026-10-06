@@ -1,0 +1,20 @@
+# Presence (moved out of configuration.yaml 2026-10-05).
+template:
+  - binary_sensor:
+      # --- Bae presence: BOTH trackers must agree before anything treats Bae as away.
+      # on  = Companion app (GPS) says home, OR Bermuda BLE says home, OR the app's
+      #       location is unknown/unavailable (never act "away" without a positive GPS away).
+      # off = the Companion app positively says away AND Bermuda BLE does not say home.
+      # delay_off swallows brief Bermuda reload blips. Used by every away/home
+      # automation instead of person.bae. Added by Claude 2026-09-13.
+      - name: Bae home
+        unique_id: bae_home_combined
+        device_class: presence
+        delay_off: "00:00:30"
+        state: >-
+          {%- set gps = states('device_tracker.motorola_razr_50') -%}
+          {%- set ble = states('device_tracker.bermuda_razr_bermuda_tracker') -%}
+          {{ not (gps not in ['home', 'unknown', 'unavailable'] and ble != 'home') }}
+        attributes:
+          companion_app: "{{ states('device_tracker.motorola_razr_50') }}"
+          bermuda_ble: "{{ states('device_tracker.bermuda_razr_bermuda_tracker') }}"
