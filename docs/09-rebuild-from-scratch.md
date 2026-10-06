@@ -61,7 +61,7 @@ They're exported in [`config/helpers/`](../config/helpers/).
    `scripts.yaml`, `scenes.yaml`, `packages/`).
 2. Recreate the UI helpers from [`config/helpers/ui_helpers.yaml`](../config/helpers/ui_helpers.yaml)
    (paste them into a package, or recreate them in *Settings → Helpers*).
-3. Look for placeholders like `<nas-ip>`, `<device-ip>`, `<nfc-tag-1>` and `<device-id>`, and fill in yours.
+3. Look for placeholders like `<nas-ip>`, `<device-ip>` and `<device-id>`, and fill in yours.
 4. Entity IDs follow my device names (`light.kitchen`, `media_player.club`…). Rename your devices
    to match, or search and replace.
 5. Check the config and restart.

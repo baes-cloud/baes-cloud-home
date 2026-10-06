@@ -1,5 +1,5 @@
 # Front door: lock helpers + combined door-open sensor (moved out of configuration.yaml 2026-10-05).
-# Gates the front-door auto-lock and Sonos announcement off during an NFC tag unlock.
+# Hold flags that pause the front-door auto-lock and announcements.
 input_boolean:
   front_door_tag_grace:
     name: Front door tag grace

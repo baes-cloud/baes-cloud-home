@@ -7,8 +7,8 @@
 3. **"Away" should need everything to agree; "home" should need almost nothing.** GPS *and*
    Bluetooth *and* empty radars to leave; any single sign of life to come back. A false "away"
    at 6 am (it happened once) is much worse than arming late.
-4. **Bluetooth alone isn't proof.** Beacons can be spoofed and phones put them to sleep, so the
-   backup auto-unlock only fires after a real absence with GPS agreeing.
+4. **Bluetooth alone isn't proof.** Beacons can be spoofed and phones put them to sleep, so never
+   let a single Bluetooth sighting trigger anything security-related on its own.
 5. **Detect manual overrides with `context.user_id`.** `parent_id` is empty for timed automations too.
 6. **Reloading automations wipes pending `for:` timers.** Design for it: sweeps and safety nets.
 7. **Keep things that must never fail apart.** The alarm and its lights are separate automations,

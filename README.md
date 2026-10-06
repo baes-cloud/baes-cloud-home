@@ -102,7 +102,7 @@ made these ad-hoc manual overrides in the phone app no longer necessary.
 | Walking around | Lights come on ahead of me and go off behind me; music follows me (if I want it) |
 | Leaving | Door locks, lights and media go off, away mode arms, robots start cleaning |
 | While I'm out | Radar intruder alert, door alerts, and the camera (only on while I'm away) sends clips described by AI |
-| Coming home | A fingerprint on the keypad lets me in, with a hands-free unlock as backup; away mode switches off |
+| Coming home | A fingerprint on the keypad lets me in (with backups in place); away mode switches off |
 | Evening | Sunset and 9 pm scenes, sofa + TV lights, night sound on the TV |
 | Falling asleep on the sofa | Everything turns off |
 | 2 am | A dim path lights the way to the bathroom and the kitchen, and switches off once I'm back in bed |
@@ -177,6 +177,6 @@ tools/             make_rmm_gif.py (regenerates the radar demo) + the fonts it u
 - [rpi-departure-board](https://github.com/baes-cloud/rpi-departure-board): the split-flap wall calendar
 
 ## Privacy
-Everything here was scrubbed before publishing: IP addresses, keys, passwords, emails, NFC tag
-IDs, device IDs and location details are replaced with placeholders like `<nas-ip>`,
+Everything here was scrubbed before publishing: IP addresses, keys, passwords, emails,
+tag IDs, device IDs and location details are replaced with placeholders like `<nas-ip>`,
 `<device-ip>` and `!secret ota_password`. If you spot something that slipped through, please open an issue.

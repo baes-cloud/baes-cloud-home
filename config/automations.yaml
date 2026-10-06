@@ -891,9 +891,7 @@
   alias: 'RMM: Away mode - welcome home'
   description: 'Disarms away mode on any sign of life - radar target, a zone going
     occupied, person.bae home, or the Razr arriving. Ignores pixel_6a (always home).
-    Deliberately permissive: a false disarm is harmless, a stuck away mode is not.
-    Welcome TTS moved to "Front door · BLE arrival unlock + welcome" (plays on door
-    open) on 2026-09-23.'
+    Deliberately permissive: a false disarm is harmless, a stuck away mode is not.'
   triggers:
   - trigger: numeric_state
     entity_id: sensor.rmm_default_master
@@ -2225,7 +2223,7 @@
   description: Locks 30s after the contact sensor reads closed. If the sensor is unavailable/unknown,
     falls back to a blind 45s timer. If the door is genuinely open this does nothing
     and waits for it to close — the 10-minute backstop handles a door left standing
-    open. Suppressed during a tag unlock and while the keep-unlocked override is on.
+    open. Suppressed while the keep-unlocked override or a hold flag is on.
   triggers:
   - trigger: state
     entity_id: lock.lock_pro_0fa0
@@ -2305,8 +2303,8 @@
 - id: '1788110000002'
   alias: Front door · Sonos announcement
   description: Speaks over whatever the Sonos speakers are already playing using the
-    native announce path — ducks the music at low volume, then resumes. Skipped for
-    tag unlocks and for a silenced overnight sweep lock.
+    native announce path — ducks the music at low volume, then resumes. Skipped while a
+    hold flag is on and for a silenced overnight sweep lock.
   triggers:
   - trigger: state
     entity_id: lock.lock_pro_0fa0
@@ -2502,39 +2500,6 @@
           importance: high
           tag: front_door_away_alert
   mode: restart
-- id: '1788110000006'
-  alias: Front door · NFC tag unlock (Razr only)
-  description: Only fires when tag <nfc-tag-1> or <nfc-tag-2> is scanned by the motorola
-    razr 50. Unlocks, holds 30s, relocks. TTS and the 5s auto-lock are gated off for
-    the duration. The relock is skipped while the keep-unlocked override is on.
-  mode: restart
-  triggers:
-  - trigger: tag
-    tag_id: <nfc-tag-id>
-    device_id: <device-id>
-  - trigger: tag
-    tag_id: <nfc-tag-id>
-    device_id: <device-id>
-  actions:
-  - action: input_boolean.turn_on
-    target:
-      entity_id: input_boolean.front_door_tag_grace
-  - action: lock.unlock
-    target:
-      entity_id: lock.lock_pro_0fa0
-  - delay: 00:00:30
-  - if:
-    - condition: state
-      entity_id: input_boolean.front_door_keep_unlocked
-      state: 'off'
-    then:
-    - action: lock.lock
-      target:
-        entity_id: lock.lock_pro_0fa0
-  - delay: 00:00:03
-  - action: input_boolean.turn_off
-    target:
-      entity_id: input_boolean.front_door_tag_grace
 - id: '1788110000007'
   alias: Front door · clear stuck suppression flags
   description: Safety net. If the tag automation or the sweep is interrupted (or HA
@@ -2830,91 +2795,6 @@
           importance: default
           tag: front_door_sensor_disagree
           notification_icon: mdi:alert-decagram
-- id: '1788110000012'
-  alias: Front door · BLE arrival unlock + welcome
-  description: 'When a Bermuda proxy spots the Razr after it has been away for 10+
-    minutes, AND RMM away mode was armed (on, or disarmed <10 min ago — blocks false
-    ''arrivals'' when the phone''s beacon sleeps overnight) AND the Companion app
-    GPS also says home (waits up to 2 min for GPS — BLE alone is spoofable), unlocks
-    and holds the door for 60s. If the door opens: says ''Welcome home, Bay'' on the
-    Club Sonos and hands back to the normal auto-lock (locks 30s after it closes).
-    If nobody opens it within 60s: relocks.'
-  triggers:
-  - trigger: state
-    entity_id: device_tracker.bermuda_razr_bermuda_tracker
-    from: not_home
-    to: home
-  conditions:
-  - alias: Auto-stay is off (party mode suspends this)
-    condition: state
-    entity_id: input_boolean.auto_stay
-    state: 'off'
-  - alias: 'Away mode was really armed (radar-confirmed empty house): still on, or
-      disarmed within the last 10 min by the arrival'
-    condition: template
-    value_template: '{{ is_state(''input_boolean.away_mode'',''on'') or (is_state(''input_boolean.away_mode'',''off'')
-      and (now() - states.input_boolean.away_mode.last_changed).total_seconds() <
-      600) }}'
-  - alias: Was away for at least 10 minutes
-    condition: template
-    value_template: '{{ (trigger.to_state.last_changed - trigger.from_state.last_changed).total_seconds()
-      >= 600 }}'
-  - condition: state
-    entity_id: lock.lock_pro_0fa0
-    state: locked
-  - condition: state
-    entity_id: input_boolean.front_door_keep_unlocked
-    state: 'off'
-  actions:
-  - alias: 'Second factor: Companion GPS must agree (up to 2 min)'
-    wait_template: '{{ is_state(''device_tracker.motorola_razr_50'', ''home'') }}'
-    timeout: 00:02:00
-    continue_on_timeout: false
-  - action: input_boolean.turn_on
-    target:
-      entity_id: input_boolean.front_door_unlock_hold
-  - action: lock.unlock
-    target:
-      entity_id: lock.lock_pro_0fa0
-  - wait_for_trigger:
-    - trigger: state
-      entity_id: binary_sensor.front_door_open
-      to: 'on'
-    timeout: 00:01:00
-    continue_on_timeout: true
-  - action: input_boolean.turn_off
-    target:
-      entity_id: input_boolean.front_door_unlock_hold
-  - if:
-    - condition: template
-      value_template: '{{ wait.trigger is not none }}'
-    then:
-    - action: media_player.play_media
-      target:
-        entity_id: media_player.club
-      data:
-        media_content_type: music
-        media_content_id: media-source://tts/tts.home_assistant_cloud?message=Welcome%20home%2C%20Bay.
-        announce: true
-        extra:
-          volume: 25
-    else:
-    - alias: Nobody came in — relock
-      if:
-      - condition: state
-        entity_id: lock.lock_pro_0fa0
-        state: unlocked
-      - condition: not
-        conditions:
-        - condition: state
-          entity_id: binary_sensor.front_door_open
-          state: 'on'
-      then:
-      - action: lock.lock
-        target:
-          entity_id: lock.lock_pro_0fa0
-  mode: single
-  max_exceeded: silent
 - id: '1788110000013'
   alias: Front door · re-throw bolt after inside handle
   description: The inside lever (and an outside key) retracts the bolt mechanically

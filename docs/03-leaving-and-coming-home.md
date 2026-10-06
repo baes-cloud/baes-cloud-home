@@ -11,15 +11,8 @@ sequenceDiagram
   HA->>House: +15 min radar empty: arm away mode
   HA->>House: +10 min (daytime): Roborock cleans, then the SL68 (twice)
   Note over HA,House: While away: radar intruder alert, the camera switches on<br/>(only while I'm away) and AI describes its clips, door-unlocked alert
-  alt The main way in
-    Me->>House: Fingerprint on the keypad unlocks the door
-  else Backup, hands-free
-    Me->>HA: Bluetooth proxy hears the phone again
-    HA->>HA: Was I away 10+ min? Away mode armed? GPS agrees (waits ≤2 min)?
-    HA->>House: Unlock and hold 60 s, "Welcome home" when the door opens
-  else Backup, manual
-    Me->>HA: Phone taps the NFC tag at the door
-  end
+  Me->>House: Fingerprint on the keypad unlocks the door
+  Note over Me,House: Extra backup systems are in place (kept private)
   HA->>House: Locks 30 s after the door closes
 ```
 
@@ -726,113 +719,13 @@ sl68_smart_clean_once:
 </details>
 
 
-## Coming home: fingerprint first, with backups
-I let myself in with a fingerprint on the keypad. Home Assistant backs that up in the background:
-if the Bluetooth proxies hear my phone after a real absence and GPS agrees, it unlocks the door
-hands-free for 60 seconds (below); NFC tags at the door are a manual fallback; and the automations
-further down make sure the door always ends up locked again.
-
-<details><summary><b>Front door · BLE arrival unlock + welcome</b> (click to expand)</summary>
-
-```yaml
-- id: '1788110000012'
-  alias: Front door · BLE arrival unlock + welcome
-  description: 'When a Bermuda proxy spots the Razr after it has been away for 10+
-    minutes, AND RMM away mode was armed (on, or disarmed <10 min ago — blocks false
-    ''arrivals'' when the phone''s beacon sleeps overnight) AND the Companion app
-    GPS also says home (waits up to 2 min for GPS — BLE alone is spoofable), unlocks
-    and holds the door for 60s. If the door opens: says ''Welcome home, Bay'' on the
-    Club Sonos and hands back to the normal auto-lock (locks 30s after it closes).
-    If nobody opens it within 60s: relocks.'
-  triggers:
-  - trigger: state
-    entity_id: device_tracker.bermuda_razr_bermuda_tracker
-    from: not_home
-    to: home
-  conditions:
-  - alias: Auto-stay is off (party mode suspends this)
-    condition: state
-    entity_id: input_boolean.auto_stay
-    state: 'off'
-  - alias: 'Away mode was really armed (radar-confirmed empty house): still on, or
-      disarmed within the last 10 min by the arrival'
-    condition: template
-    value_template: '{{ is_state(''input_boolean.away_mode'',''on'') or (is_state(''input_boolean.away_mode'',''off'')
-      and (now() - states.input_boolean.away_mode.last_changed).total_seconds() <
-      600) }}'
-  - alias: Was away for at least 10 minutes
-    condition: template
-    value_template: '{{ (trigger.to_state.last_changed - trigger.from_state.last_changed).total_seconds()
-      >= 600 }}'
-  - condition: state
-    entity_id: lock.lock_pro_0fa0
-    state: locked
-  - condition: state
-    entity_id: input_boolean.front_door_keep_unlocked
-    state: 'off'
-  actions:
-  - alias: 'Second factor: Companion GPS must agree (up to 2 min)'
-    wait_template: '{{ is_state(''device_tracker.motorola_razr_50'', ''home'') }}'
-    timeout: 00:02:00
-    continue_on_timeout: false
-  - action: input_boolean.turn_on
-    target:
-      entity_id: input_boolean.front_door_unlock_hold
-  - action: lock.unlock
-    target:
-      entity_id: lock.lock_pro_0fa0
-  - wait_for_trigger:
-    - trigger: state
-      entity_id: binary_sensor.front_door_open
-      to: 'on'
-    timeout: 00:01:00
-    continue_on_timeout: true
-  - action: input_boolean.turn_off
-    target:
-      entity_id: input_boolean.front_door_unlock_hold
-  - if:
-    - condition: template
-      value_template: '{{ wait.trigger is not none }}'
-    then:
-    - action: media_player.play_media
-      target:
-        entity_id: media_player.club
-      data:
-        media_content_type: music
-        media_content_id: media-source://tts/tts.home_assistant_cloud?message=Welcome%20home%2C%20Bay.
-        announce: true
-        extra:
-          volume: 25
-    else:
-    - alias: Nobody came in — relock
-      if:
-      - condition: state
-        entity_id: lock.lock_pro_0fa0
-        state: unlocked
-      - condition: not
-        conditions:
-        - condition: state
-          entity_id: binary_sensor.front_door_open
-          state: 'on'
-      then:
-      - action: lock.lock
-        target:
-          entity_id: lock.lock_pro_0fa0
-  mode: single
-  max_exceeded: silent
-```
-
-</details>
-
-
-Why so many conditions? **Bluetooth alone can be spoofed and phone beacons sleep overnight**,
-so a "new" Bluetooth sighting at 3 am isn't an arrival. Requiring away mode to have been
-armed, plus GPS agreement, makes the backup auto-unlock both safe and boring. NFC tags at the door
-(only my phone counts) are the manual fallback.
+## Coming home
+I let myself in with a fingerprint on the keypad. There are extra backup systems in place behind it,
+which I'm keeping private, and the automations below make sure the door always ends up locked again.
 
 ## The front door, belt and braces
 The lock is a SwitchBot Lock Pro with a fingerprint keypad and a separate Zigbee contact sensor.
-Thirteen small automations keep it honest in the background:
+A dozen or so small automations keep it honest in the background:
 
 - **Auto-lock** 30 s after the door closes. If the sensor is offline, a blind 45 s timer.
 - A **10-minute backstop** and a **3-hourly sweep** (silenced overnight).
