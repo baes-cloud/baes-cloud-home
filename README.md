@@ -24,7 +24,8 @@ how the home is use and interacted with.
 **Home Assistant is free, open-source software** that runs on a small computer in your home and
 talks to almost any smart device, from any brand. Instead of a dozen apps that don't talk to each
 other, one "brain" sees everything (lights, speakers, TV, door lock, robot vacuums, washing
-machine) and makes it all work together.
+machine) and makes it all work together, with the added perk of both blocking access to third party 
+platforms (google, tuya, Samsung) accessing, storing and selling my data.
 
 What makes mine feel like magic is **presence**. Radar sensors that cost about $15 each track up
 to nine people around the flat, each to the spot, even when someone is sitting perfectly still.
