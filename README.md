@@ -2,6 +2,15 @@
 
 **One bae's automated domain: radar tracking, calendar alarms, and failover Pi resilience.**
 
+> **About me:** a hobbyist with no coding background, running Home Assistant for about five years.
+> I used to enjoy spending hours a week tweaking it. Now I enjoy starting from the dream end state,
+> where anything is possible, and Claude helps me turn those ideas into a simple, functional reality.
+>
+> I worried I'd stop learning and lose the skills I had. The opposite happened: working with Claude
+> has taught me languages and programming methods I never knew existed, and how and where things
+> work and fail. Claude is also my final security guard, making sure my setup and my information
+> stay safe and secure.
+
 My [Home Assistant](https://www.home-assistant.io) setup: one apartment, about 180 devices from a
 dozen brands, cheap sensors I built myself, and tech that was gathering dust. All of it is tuned
 so the home works around me and I hardly ever have to touch it.
@@ -44,8 +53,13 @@ also two round knob screens I built, and alerts that pop up on whatever screen i
 and others sit side by side with $5 DIY boards, and almost anything that isn't smart can be
 hooked in cheaply. Unused and "broken" gadgets got a second life doing one specific job each: an
 old Raspberry Pi 400 became my wall calendar *and* a backup clone of the brain that takes over if
-the main one dies, and a QNAP NAS that was declared end-of-life now runs Unraid as my media
-server. Most of it keeps working without the internet.
+the main one dies, an ex-business laptop became my own local private cloud and Zigbee hub, and a
+QNAP NAS that was declared end-of-life now runs Unraid as my media server. Most of it keeps working
+without the internet.
+
+**It keeps getting better.** Whenever I reach the end of my week with some Claude credits left over,
+Claude reviews the error logs and looks for efficiencies, new approaches, and better or new ways to
+use what's already here, so everything stays in line.
 
 ## What it does
 
@@ -105,7 +119,7 @@ positions: the 2 am run (bed → ensuite → bathroom → wardrobe → kitchen f
 flowchart LR
   %% "Behind the scenes" is declared first so it sits along the bottom; ~~~ links are invisible and only position boxes
   subgraph Infra[Behind the scenes]
-    Dongle[Zigbee dongle<br/>+ motion, door,<br/>leak sensors] --> Lap[baelap, old laptop<br/>Zigbee2MQTT,<br/>MQTT, proxy,<br/>failover watchdog]
+    Dongle[Zigbee dongle<br/>+ motion, door,<br/>leak sensors] --> Lap[baelap, old laptop<br/>my private cloud,<br/>Zigbee2MQTT, MQTT,<br/>failover watchdog]
     Pi400[Pi 400 wall<br/>calendar + backup<br/>clone of the Pi 5]
     NAS[NAS: end-of-life<br/>QNAP running<br/>Unraid: Plex,<br/>music, backups]
   end

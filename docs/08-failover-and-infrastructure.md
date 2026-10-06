@@ -77,8 +77,8 @@ seconds after promotion, and failback was fully automatic once the Pi 5 came bac
 
 
 ## Other infrastructure
-- **Old HP EliteBook laptop:** Mosquitto, Zigbee2MQTT, the Caddy proxy, the failover watchdog, and the
-  nightly news-digest job.
+- **Old HP EliteBook laptop (baelap):** my own local private cloud, plus Mosquitto, Zigbee2MQTT, the
+  Caddy proxy, the failover watchdog and the nightly news-digest job.
 - **NAS (an end-of-life QNAP, now running Unraid):** Plex, the music library, backups, and the news digest web server.
 - **Backups:** daily, 3 copies kept, to the Pi, the NAS and Home Assistant Cloud.
 
