@@ -8,7 +8,7 @@ A mix of a few big brands, cheap DIY parts and hand-me-downs. Nothing has to be 
 | **Standby brain + wall calendar** | Raspberry Pi 400 (hand-me-down) + 14" ASUS ProArt bar display | Runs the departure board kiosk and a stopped HA container |
 | **Private cloud + Zigbee/MQTT/proxy/watchdog** | Ex-business HP EliteBook laptop (baelap) | My own local private cloud; Docker: Mosquitto, Zigbee2MQTT, Caddy |
 | **NAS** | End-of-life QNAP, given a second life with Unraid | Plex, music, backups |
-| **Zigbee coordinator** | Sonoff Dongle-M (network) | No USB stick, so either HA can use it, POE |
+| **Zigbee coordinator** | Sonoff Dongle-M (network), POE | No USB stick, so either HA can use it |
 | **Hue Bridge** | Philips Hue Bridge, second-hand for about $25 | Not essential: added to get the best out of Hue scenes and addressable strip lighting |
 | **Radar** | Apollo R PRO-1 (LD2450 + LD2412, Ethernet) as main area/home sensor (~$120 and worth it) + 2× DIY ESP32 + LD2450 | ~$15 per DIY radar; hidden under a downlight cover, behind a canvas and inside a display box |
 | **Bluetooth proxies** | 3-4 cheap ESP32 boards (can be run on rotary displays, apollo and voice box too but seperated for door lock stability) | Bermuda presence, SwitchBot lock |
