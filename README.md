@@ -6,14 +6,16 @@
 > I used to enjoy spending hours a week tweaking it. Now I enjoy starting from the dream end state,
 > where anything is possible, and Claude helps me turn those ideas into a simple, functional reality.
 >
-> I worried I'd stop learning and lose the skills I had. The opposite happened: working with Claude
-> has taught me languages and programming methods I never knew existed, and how and where things
-> work and fail. Claude is also my final security guard, making sure my setup and my information
-> stay safe and secure.
+> I worried I'd stop learning and lose the skills I had. The opposite happened: using Claude code
+> has taught me about languages and programming methods I never knew existed, helped me understand
+> how everything does and can work together, handles debugging effortlessly, while keeping an eye on
+> privacy, security, and flagging any risks.
 
 My [Home Assistant](https://www.home-assistant.io) setup: one apartment, about 180 devices from a
 dozen brands, cheap sensors I built myself, and tech that was gathering dust. All of it is tuned
-so the home works around me and I hardly ever have to touch it.
+so the home works around me and I hardly ever have to touch it. Most of what it does is based on 
+what I want/have asked for + all of the sensor data my home assistant has recorded about me and 
+how the home is use and interacted with. 
 
 ![How it fits together](images/overview.svg)
 
@@ -30,20 +32,22 @@ My phone's location plus Bluetooth tells the house when I've left or come home. 
 knows when I'm sleeping and it knows when I'm awake. It has been tuned to what I want based on
 where I am, the day, the time and what I'm doing. So the lights follow me, the music follows me,
 the door locks behind me (a fingerprint on the keypad lets me back in), the robot vacuums clean
-while I'm out, and my alarm reads my work roster so I never set one.
+while I'm out, and my alarm reads my work roster so I never set one, or wake up too early (or late)
+based on where I am working that day.
 
 Two robot vacuums share the floors. The main one (a Roborock) does a full clean once I've been gone
 ten minutes. My old, cheap one (a Lubluelu SL68 that still works fine) then does a final quick sweep
-if the main one finished without a problem.
+if the main one finished without a problem, or does a full clean if the Roborock gets stuck behind
+a closed door, or caught on something I left on the floor.
 
 When friends are over, **party mode** pauses the automations that would be annoying or make no
 sense with a crowd: lights reacting to people walking past, scenes changing, the door locking itself
-and announcing it, away mode and the robots. It nags me at 10 am if I leave it on.
+and announcing it, away mode and the robots. It nags/reminds me at 10 am if I have left it on.
 
 The sensors I built are hidden in plain sight: one is in the ceiling under a standard downlight
 cover, one sits on a wall behind a canvas artwork, and one is on a shelf inside a display box.
 
-**I no longer use "dashboards".** Historically I was heavily dashboard-focused, spending hours a
+**Dashboards, my former love.** Historically I was heavily dashboard-focused, spending hours a
 week tweaking and perfecting highly custom dashboards that ran on screens in every room. Now I
 use **one remote**: an app I designed from the ground up, running on an affordable Android remote,
 that controls the whole home by touch screen, button press or voice ("hey Pikachu"). There are
@@ -54,8 +58,8 @@ and others sit side by side with $5 DIY boards, and almost anything that isn't s
 hooked in cheaply. Unused and "broken" gadgets got a second life doing one specific job each: an
 old Raspberry Pi 400 became my wall calendar *and* a backup clone of the brain that takes over if
 the main one dies, an ex-business laptop became my own local private cloud and Zigbee hub, and a
-QNAP NAS that was declared end-of-life now runs Unraid as my media server. Most of it keeps working
-without the internet.
+QNAP NAS i got cheap second hand that was declared end-of-life now runs Unraid as my media server. 
+Most of it keeps working without the internet, and most of it isn't allowed to talk to the internet.
 
 **It keeps getting better.** Whenever I reach the end of my week with some Claude credits left over,
 Claude reviews the error logs and looks for efficiencies, new approaches, and better or new ways to
