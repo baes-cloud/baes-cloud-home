@@ -67,12 +67,14 @@ Most of it keeps working without the internet, and most of it isn't allowed to t
 
 **It keeps getting better.** Whenever I reach the end of my week with some Claude credits left over,
 Claude reviews the error logs and looks for efficiencies, new approaches, and better or new ways to
-use what's already here, so everything stays in line. It's also how I do **advanced troubleshooting
-and auditing**: Claude reads the logs, traces, registries and config directly and follows a problem
+use what's already here, so everything stays in line. It's handles complex troubleshooting and deep
+auditing: Claude reads the logs, traces, registries and config directly and follows a problem
 to its root cause. Slow restarts turned out to be a 300 MB voice index being rewritten to the USB
 drive after every reboot, and a security alert had been quietly switching itself off at every
 restart. A full audit found two sensor types making over 80% of all database writes, plus
-integrations and add-ons I no longer used.
+integrations and add-ons I no longer used. Last week it even checked what I had been using the HA
+app on my phone to do and identified improvements to both the remote and existing automations that
+made these ad-hoc manual overrides in the phone app no longer necessary.
 
 ## What it does
 
@@ -96,7 +98,7 @@ integrations and add-ons I no longer used.
 |---|---|
 | ~70 min before my shift | Every speaker plays my alarm, the lights fade up, and the alarm pops up on the remote, the knob and my phone |
 | Out of bed | Morning lights, TV on with the news |
-| First bathroom visit | The speaker reads today's calendar and a news digest, then joins the lounge |
+| Time for a morning shower | The bathroom speaker reads today's calendar and a curated news digest, then joins the lounge |
 | Walking around | Lights come on ahead of me and go off behind me; music follows me (if I want it) |
 | Leaving | Door locks, lights and media go off, away mode arms, robots start cleaning |
 | While I'm out | Radar intruder alert, door alerts, and the camera (only on while I'm away) sends clips described by AI |
@@ -108,7 +110,7 @@ integrations and add-ons I no longer used.
 ## See it
 
 **Presence on the floorplan.** An illustrative mock-up built from my real zones and radar
-positions: the 2 am run (bed → ensuite → bathroom → wardrobe → kitchen for a drink → back to bed through the real doorways), then the kitchen lights in the day.
+positions: the 2 am run (bed → bathroom → glass of water from the kitchen → back to bed), then the kitchen lights in the day.
 
 ![RMM demo](images/rmm/rmm-demo.gif)
 
