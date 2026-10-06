@@ -11,7 +11,7 @@
 > how everything does and can work together, handles debugging effortlessly, while keeping an eye on
 > privacy, security, and flagging any risks.
 
-My [Home Assistant](https://www.home-assistant.io) setup: one apartment, about 85 devices from 25
+My [Home Assistant](https://www.home-assistant.io) setup: one apartment, about 90 devices from 25
 brands, cheap sensors I built myself, and tech that was gathering dust. All of it is tuned
 so the home works around me and I hardly ever have to touch it. Most of what it does is based on 
 what I want/have asked for + all of the sensor data my home assistant has recorded about me, how the

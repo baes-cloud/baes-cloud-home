@@ -9,13 +9,14 @@ A mix of a few big brands, cheap DIY parts and hand-me-downs. Nothing has to be 
 | **Private cloud + Zigbee/MQTT/proxy/watchdog** | Ex-business HP EliteBook laptop (baelap) | My own local private cloud; Docker: Mosquitto, Zigbee2MQTT, Caddy |
 | **NAS** | End-of-life QNAP, given a second life with Unraid | Plex, music, backups |
 | **Zigbee coordinator** | Sonoff Dongle-M (network) | No USB stick, so either HA can use it |
+| **Hue Bridge** | Philips Hue Bridge, second-hand for about $25 | Not essential: added to get the best out of Hue scenes and addressable strip lighting |
 | **Radar** | Apollo R PRO-1 (LD2450 + LD2412, Ethernet) + 2× DIY ESP32 + LD2450 | ~$15 per DIY radar; hidden under a downlight cover, behind a canvas and inside a display box |
 | **Bluetooth proxies** | 4–5 cheap ESP32 boards (one doubles as a camera board) | Bermuda presence, SwitchBot lock |
 | **Motion** | IKEA VALLHORN, Xiaomi, Sonoff SNZB-06P | Instant-on |
 | **Door** | SwitchBot Lock Pro + fingerprint keypad + IKEA PARASOLL contact sensor + NFC tags | The keypad is the main way in; a Bluetooth + GPS arrival unlock and the NFC tags are backups |
 | **Leak** | IKEA BADRING | |
 | **Lights** | Clipsal Wiser switches/dimmers (Zigbee), IKEA TRADFRI, Philips Hue (Play, Lightstrip, OmniGlow), WiZ, Govee (Matter), Tuya/Smart Life, IKEA TRETAKT plugs, USB light switches | |
-| **Speakers** | Sonos Beam + 2× Play:3, plus bedroom, bathroom and office speakers | |
+| **Speakers** | 11 Sonos: lounge Beam + Sub Mini + 2× One (rears) + 2× ceiling Play:3s (extra fronts); SYMFONISK lamp pair (bedroom); One + One SL pair (office); one in the bathroom | |
 | **TVs** | Samsung The Serif (55" + 43") + Google TV Streamer | |
 | **Robots** | Roborock Qrevo Master + Lubluelu SL68 (local via tuya-local) | The SL68 is my old, cheap one: the backup and a final sweep |
 | **Appliances** | Samsung washer (SmartThings), Sensibo (aircon) | |

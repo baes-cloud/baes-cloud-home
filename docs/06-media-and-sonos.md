@@ -1,7 +1,8 @@
 # 6 · Media: Sonos, TV and Plex without thinking about it
 
-- **Sonos everywhere:** a Beam in the lounge (with two Play:3s bonded to it), plus
-  bedroom, bathroom and office speakers. Music Assistant plays my local library (on the NAS)
+- **Sonos everywhere:** 11 speakers. The lounge is a Beam with a Sub Mini, two Ones as rears
+  and two ceiling Play:3s bonded as extra fronts; the bedroom and office have stereo pairs, plus
+  one in the bathroom. Music Assistant plays my local library (on the NAS)
   and Spotify.
 - **Music follows me** (optional toggle): walking into a room joins that room's speaker to the
   lounge, and five minutes after the room empties it leaves the group. Each room keeps its
