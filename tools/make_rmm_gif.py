@@ -128,8 +128,12 @@ T1 = 'Night path'
 L_off = {'Kitchen 25%': False, 'Wardrobe': False, 'Mirror LED': False}
 L_on = {'Kitchen 25%': True, 'Wardrobe': True, 'Mirror LED': True}
 bed = (27.9, 74.0)
-bath = (52.3, 77.3)
-drink = (85.0, 46.8)
+bath = (50.0, 79.0)
+drink = (76.0, 46.0)
+# Doorways (from the owner's marked-up plan): bedroom <-> lounge at the bedroom's top-left,
+# ensuite bedroom <-> bathroom, bathroom <-> wardrobe, wardrobe <-> kitchen at the top-right.
+DOOR_ENSUITE = (41.7, 76.0); DOOR_BATH_WARDROBE = (64.6, 76.5)
+DOOR_WARDROBE_KITCHEN = (89.7, 50.0); DOOR_BEDROOM = (11.7, 52.8)
 def walk(points, steps, clock, cap_fn, lit_fn):
     trail = []
     for i, p in enumerate(path(points, steps)):
@@ -137,15 +141,16 @@ def walk(points, steps, clock, cap_fn, lit_fn):
         lit = lit_fn(i, p)
         add(frame(True, p, trail, L_on if lit else L_off, clock, T1, cap_fn(i, lit)))
 add(frame(True, P(*bed), [], L_off, '02:14', T1, 'Asleep. The bed zone is occupied and it is inside the night window, so the house stays dark.', 'bed'), 14)
-walk([bed, (37.5, 72.7), (41.3, 75.4), (47.1, 76.5), bath], 20, '02:14',
-     lambda i, lit: 'Into the bathroom: the night path comes on, dim - mirror LED, wardrobe and the kitchen at 25%.' if lit else 'Up for the bathroom: a target leaves the bed zone.',
+walk([bed, (34.0, 75.5), (39.0, 76.0), DOOR_ENSUITE, (44.5, 76.5), bath], 20, '02:14',
+     lambda i, lit: 'Into the bathroom through the ensuite door: the night path comes on, dim - mirror LED, wardrobe and the kitchen at 25%.' if lit else 'Up for the bathroom: a target leaves the bed zone.',
      lambda i, p: inside(p, ZONES['bathroom']))
 add(frame(True, P(*bath), [], L_on, '02:15', T1, 'The radar holds the bathroom while you stand still - no motion sensor timing out on you in the dark.', 'bathroom'), 14)
-walk([bath, (50.4, 66.3), (49.6, 53.8), (51.9, 46.5), (63.5, 45.8), (76.9, 46.2), drink], 26, '02:17',
-     lambda i, lit: 'Then the kitchen for a drink - the way is already lit at 25%, nothing bright.', lambda i, p: True)
+walk([bath, (56.0, 77.5), (61.5, 76.5), DOOR_BATH_WARDROBE, (68.0, 76.0), (75.0, 70.0), (84.0, 62.0), (89.0, 56.0),
+      DOOR_WARDROBE_KITCHEN, (87.5, 46.5), (80.0, 45.5), drink], 30, '02:17',
+     lambda i, lit: 'Then out through the wardrobe to the kitchen for a drink - the way is already lit, nothing bright.', lambda i, p: True)
 add(frame(True, P(*drink), [], L_on, '02:18', T1, 'Getting a drink.', 'kitchen'), 12)
-walk([drink, (80.8, 44.6), (57.7, 42.7), (34.6, 43.5), (21.2, 44.6), (18.3, 51.0), (15.4, 57.7), (15.0, 66.3), (18.3, 74.0), bed], 34, '02:19',
-     lambda i, lit: 'Back to bed. The path stays on until you have been back in bed for 2 minutes (or it has been empty for 4).', lambda i, p: True)
+walk([drink, (60.0, 44.0), (40.0, 44.0), (22.0, 45.5), (13.0, 48.5), DOOR_BEDROOM, (12.5, 57.0), (15.0, 64.0), (20.0, 71.0), bed], 32, '02:19',
+     lambda i, lit: 'Back to bed across the lounge. The path stays on until you have been back in bed for 2 minutes (or it has been empty for 4).', lambda i, p: True)
 add(frame(True, P(*bed), [], L_on, '02:20', T1, 'Back in bed... waiting 2 minutes.', 'bed'), 10)
 add(frame(True, P(*bed), [], L_off, '02:22', T1, 'Bed occupied for 2 minutes, so the path lights switch off. No buttons, no app.', 'bed'), 16)
 

@@ -72,7 +72,7 @@ the main one dies. Most of it keeps working without the internet.
 ## See it
 
 **Presence on the floorplan.** An illustrative mock-up built from my real zones and radar
-positions: the 2 am bathroom-and-a-drink run, then the kitchen lights in the day.
+positions: the 2 am run (bed → ensuite → bathroom → wardrobe → kitchen for a drink → back to bed through the real doorways), then the kitchen lights in the day.
 
 ![RMM demo](images/rmm/rmm-demo.gif)
 

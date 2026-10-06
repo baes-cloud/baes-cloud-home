@@ -102,9 +102,11 @@ The exported map (zones, radar positions, tracking settings) is in
   mode: restart
 ```
 
-The **night path** is the same idea at 2 am. Getting up for the bathroom, and then the kitchen
-for a drink, lights a dim route (mirror LED, wardrobe, kitchen at 25%). It all goes off two minutes
-after I'm back in bed, which is exactly the walk in the animation above.
+The **night path** is the same idea at 2 am. The bathroom opens off the bedroom and into the
+wardrobe, which opens into the kitchen. So getting up for the bathroom, then going out through the
+wardrobe to the kitchen for a drink, follows exactly the route the automation lights, dimly:
+mirror LED, wardrobe, kitchen at 25%. Back across the lounge to bed, it all goes off two minutes
+later. That's the walk in the animation above.
 
 <details><summary><b>RMM: Night path to bathroom</b> (click to expand)</summary>
 
