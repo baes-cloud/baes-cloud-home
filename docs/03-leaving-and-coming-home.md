@@ -721,7 +721,7 @@ sl68_smart_clean_once:
 
 ## Coming home
 I let myself in with a fingerprint on the keypad. There are extra backup systems in place behind it,
-which I'm keeping private, and the automations below make sure the door always ends up locked again.
+and the automations below make sure the door always ends up locked again.
 
 ## The front door, belt and braces
 The lock is a SwitchBot Lock Pro with a fingerprint keypad and a separate Zigbee contact sensor.
