@@ -12,7 +12,7 @@ A mix of a few big brands, cheap DIY parts and hand-me-downs. Nothing has to be 
 | **Hue Bridge** | Philips Hue Bridge, second-hand for about $25 | Not essential: added to get the best out of Hue scenes and addressable strip lighting |
 | **Radar** | Apollo R PRO-1 (LD2450 + LD2412, Ethernet) as main area/home sensor (~$120 and worth it) + 2× DIY ESP32 + LD2450 | ~$15 per DIY radar; hidden under a downlight cover, behind a canvas and inside a display box |
 | **Bluetooth proxies** | 3-4 cheap ESP32 boards (can be run on rotary displays, apollo and voice box too but seperated for door lock stability) | Bermuda presence, SwitchBot lock |
-| **Motion** | IKEA VALLHORN, Xiaomi, Sonoff SNZB-06P | Instant-on |
+| **Motion** | IKEA VALLHORN, Xiaomi, Sonoff SNZB-06P | Instant-on for Kitchen, Bedroom, Office, Bathroom (plus extra presence for Bathroom) |
 | **Door** | SwitchBot Lock Pro + fingerprint keypad + IKEA PARASOLL contact sensor | The keypad is the main way in, with extra backup systems in place |
 | **Leak** | IKEA BADRING | Cheap, essential |
 | **Lights** | Clipsal Wiser switches/dimmers (Zigbee), IKEA TRADFRI, Philips Hue (Play, Lightstrip, OmniGlow), WiZ, Govee (Matter), Tuya/Smart Life, IKEA TRETAKT plugs, aliexpress USB light switches | Old, new, installed, added-on |
