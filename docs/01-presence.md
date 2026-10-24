@@ -44,6 +44,66 @@ And the real thing, live on the remote:
 The exported map (zones, radar positions, tracking settings) is in
 [`config/rmm/radar_map_manager.json`](../config/rmm/radar_map_manager.json).
 
+## One person, two, or a crowd: presence through a day
+The same sensors behave differently depending on who's home and what time it is. Four more
+mock-ups, built the same way (generator:
+[`tools/make_presence_scenes.py`](../tools/make_presence_scenes.py)). Teal is me, pink is a
+guest, grey rings are people the radar can't take on, and the round grey things are robots.
+
+**A weekday morning, on my own.** The alarm comes from my work calendar, the flat wakes up when
+I get out of bed, the shower is a "standing still is fine" zone, the news follows me from the
+bathroom to the lounge, and everything switches off after I've left.
+
+![Weekday morning](../images/rmm/presence-morning.gif)
+
+**An evening with a friend over.** Two people on the radar for 10 minutes switches on guest
+mode by itself. That stops the house mistaking a quiet film for me falling asleep, and stops
+the music following me out of the room and leaving my friend in silence. Once I've been on my
+own for 30 minutes it switches off again, and normal rules (including "fell asleep on the sofa,
+lights off") come back.
+
+![Evening, two people](../images/rmm/presence-evening-guest.gif)
+
+**A party.** Each LD2450 tracks at most three people, so in a crowd the count tops out. That's
+fine, because party mode is a switch, not a count: it pauses the room lights, scenes, the door's
+auto-lock and announcements, away mode and the robots, but keeps the bathroom light and music
+follow-me going. If I forget it, the house reminds me at 10 am.
+
+![Party night](../images/rmm/presence-party.gif)
+
+**Out for the day.** Away mode needs GPS *and* Bluetooth to agree. The robots look exactly like
+people to the radar, so while one is cleaning the radar automations pause and the intruder alert
+ignores the radar. They head home to their docks when I'm about a kilometre away.
+
+![Out for the day](../images/rmm/presence-away-robot.gif)
+
+## Radar replay: rewinding the radar
+Live dots are great until something odd happens at 3 am and you want to know why. **Radar
+Replay** records every radar track and lets me scrub back through the last 48 hours like a
+video. It was built with Google's Antigravity and has its own repo:
+[ha-rmm-replay](https://github.com/baes-cloud/ha-rmm-replay).
+
+![Radar Replay](../images/replay/demo-replay.gif)
+
+- **A recorder** listens to Radar Map Manager's live feed and saves positions only when
+  something changes: about twice a second while someone moves, a keyframe every 15 seconds while
+  they sit still, and once a minute when the flat is empty. It keeps all of that out of Home Assistant's own
+  database, so 48 hours of history fits in a few megabytes.
+- **A dashboard card** (also a standalone page) plays it back on the floorplan with each
+  person's trail. Pick a window from 15 minutes to 48 hours, play at up to 60×, skip the quiet
+  stretches, or jump straight to the previous or next move.
+- **Layers** show each radar's field of view, the RMM zones, the lights, and a heatmap of where
+  people spend their time.
+- **Down the side:** the exact position and which radar was tracking it, how long each room was
+  occupied in the window, and a list of every move from room to room. Tap one to replay it.
+
+| The whole dashboard | Zones and radar coverage | The scrubber |
+|---|---|---|
+| <img src="../images/replay/overview.png" width="300"> | <img src="../images/replay/zones-and-radars.png" width="300"> | <img src="../images/replay/scrubber-detail.png" width="300"> |
+
+It's the quickest way I've found to answer "why did that light turn off?", spot a ghost
+target, or check that a zone edge is where I think it is.
+
 ## The pattern every room light uses
 
 > **PIR turns it on instantly. Radar keeps it on while you're still there. A sweep cleans up.**
