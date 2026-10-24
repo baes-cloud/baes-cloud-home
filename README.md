@@ -55,7 +55,9 @@ cover, one sits on a wall behind a canvas artwork, and one is on a shelf inside 
 week tweaking and perfecting highly custom dashboards that ran on screens in every room. Now I
 use **one remote**: an app I designed from the ground up, running on an affordable Android remote,
 that controls the whole home by touch screen, button press or voice ("hey Pikachu"). There are
-also two round knob screens I built, and alerts that pop up on whatever screen is nearby.
+also two round knob screens I built, and alerts that pop up on whatever screen is nearby. The
+TVs and Nest Hubs no longer show Google's screensavers: they show my own ambient page with the
+time, weather, music and a live floorplan of the flat.
 
 **Nothing is locked to one company.** IKEA, Philips Hue, Sonos, Samsung, Google, Tuya/Smart Life
 and others sit side by side with $5 DIY boards, and almost anything that isn't smart can be
@@ -80,17 +82,17 @@ made these ad-hoc manual overrides in the phone app no longer necessary.
 
 | | |
 |---|---|
-| [**1 · Presence**](docs/01-presence.md) | Three radars fused onto my floorplan (up to 9 people), still-person detection, Bluetooth + GPS that must agree before I'm "away" |
+| [**1 · Presence**](docs/01-presence.md) | Three radars fused onto my floorplan (up to 9 people), still-person detection, Bluetooth + GPS that must agree before I'm "away", guest and party modes, a 48-hour radar replay |
 | [**2 · Mornings**](docs/02-mornings-and-work-alarm.md) | Alarms worked out from my work calendar, whole-house Sonos, a morning briefing and the news |
 | [**3 · Leaving & coming home**](docs/03-leaving-and-coming-home.md) | Lock up, lights off, robots clean, intruder alerts, a fingerprint keypad (with backups) to get back in |
-| [**4 · One remote & popups everywhere**](docs/04-popups-on-every-screen.md) | My own remote app, two knobs, a wall board, phone and speakers all show the same state |
+| [**4 · One remote & popups everywhere**](docs/04-popups-on-every-screen.md) | My own remote app, two knobs, a wall board, the TV screensaver, the Nest Hubs, phone and speakers all show the same state |
 | [**5 · Voice: "hey Pikachu"**](docs/05-voice-hey-pikachu.md) | A custom wake word on a voice box and my remotes, local commands first |
 | [**6 · Media**](docs/06-media-and-sonos.md) | Music follows me, the TV takes over the Sonos, a B&O-style music knob |
 | [**7 · Safety nets**](docs/07-safety-nets.md) | Leaks, weather warnings, radar ghosts, lost speakers, the Pi's own health |
 | [**8 · Failover**](docs/08-failover-and-infrastructure.md) | A backup clone on the wall-calendar Pi takes over in ~5 minutes |
 | [**9 · Rebuild from scratch**](docs/09-rebuild-from-scratch.md) | Every add-on, HACS component, integration and step, in order |
 | [**10 · Lessons learned**](docs/10-lessons-learned.md) | What I'd tell anyone starting out |
-| [Hardware](docs/hardware.md) | Everything in the flat, from $5 boards to the TV |
+| [Hardware](docs/hardware.md) | Everything in the flat, room by room, from Clipsal wall switches and Hue to $5 boards and the TV |
 
 ## A day with it
 
@@ -114,18 +116,40 @@ positions: the 2 am run (bed → bathroom → glass of water from the kitchen �
 
 ![RMM demo](images/rmm/rmm-demo.gif)
 
+**One person, two, or a crowd.** The same sensors at different times of day, with different
+people home ([what's happening in each](docs/01-presence.md#one-person-two-or-a-crowd-presence-through-a-day)):
+
+| A weekday morning, on my own | An evening with a friend over |
+|---|---|
+| ![Weekday morning](images/rmm/presence-morning.gif) | ![Evening, two people](images/rmm/presence-evening-guest.gif) |
+| **A party** | **Out for the day, robots cleaning** |
+| ![Party night](images/rmm/presence-party.gif) | ![Out for the day](images/rmm/presence-away-robot.gif) |
+
+**Radar replay.** Every radar track from the last 48 hours, scrubbable like a video
+([more](docs/01-presence.md#radar-replay-rewinding-the-radar), repo:
+[ha-rmm-replay](https://github.com/baes-cloud/ha-rmm-replay)).
+
+![Radar Replay](images/replay/demo-replay.gif)
+
 **The one remote, the knobs and the wall board**
 
 | The one remote (my own app) | BæoRemote music knob | Bedroom hub knob | Wall board (old Pi 400) |
 |---|---|---|---|
 | <img src="images/astrion/main.png" width="200"> | <img src="images/baeoremote/now-playing.png" width="200"> | <img src="images/rotary/01-home-wheel.png" width="200"> | <img src="images/board/photo-in-situ.jpg" width="260"> |
-| <img src="images/astrion/tv-plex.png" width="200"> | <img src="images/baeoremote/playlists.png" width="200"> | <img src="images/rotary/02-lights.png" width="200"> | <img src="images/board/screenshot-night.png" width="260"> |
+| <img src="images/astrion/tv-page.png" width="200"> | <img src="images/baeoremote/playlists.png" width="200"> | <img src="images/rotary/02-lights.png" width="200"> | <img src="images/board/screenshot-night.png" width="260"> |
 
 **Popups wherever I am**
 
 | Washer done | Alarm on the remote | Alarm on a knob |
 |---|---|---|
 | <img src="images/astrion/alert-washer.png" width="230"> | <img src="images/astrion/alarm-ringing.png" width="230"> | <img src="images/rotary/10-alarm-ringing.png" width="230"> |
+
+**The TV and the Nest Hubs.** My own ambient page instead of Google's screensavers
+([more](docs/04-popups-on-every-screen.md#tvs-and-nest-hubs-ambient-screens)).
+
+| TV screensaver (Google TV Streamer) | Nest Hub |
+|---|---|
+| <img src="images/baeovision/tv-ambient.png" width="460"> | <img src="images/baeovision/hub.png" width="380"> |
 
 ## How it's wired
 
@@ -147,7 +171,7 @@ flowchart LR
   subgraph Out[What it runs]
     Lights[Lights: Zigbee,<br/>Hue, WiZ,<br/>Matter, Tuya] ~~~ Blinds[Blinds and<br/>sheer curtains<br/>Zigbee, Tuya] ~~~ Door[Door lock]
     Sonos[Sonos + Music<br/>Assistant] ~~~ TVs[Samsung TVs +<br/>Google TV<br/>Streamer] ~~~ Media[Media centre:<br/>Plex, music<br/>library]
-    Alarms[Alarms from my<br/>work calendar,<br/>on every speaker] ~~~ Robots["Robot vacuums<br/>clean while<br/>I'm out"] ~~~ Screens[Popups on the<br/>remote, knobs,<br/>board and phone]
+    Alarms[Alarms from my<br/>work calendar,<br/>on every speaker] ~~~ Robots["Robot vacuums<br/>clean while<br/>I'm out"] ~~~ Screens[Popups on the<br/>remote, knobs, TV,<br/>Hubs and phone]
   end
   RMM & Bermuda & Cal & Lap --> Brain
   Brain --> Out
@@ -167,7 +191,7 @@ config/            the real config, scrubbed of private details (copy into /conf
   rmm/             Radar Map Manager zones and radar positions
 docs/              the write-up, one topic per page
 images/            screenshots, the floorplan, the infographic and the radar demo
-tools/             make_rmm_gif.py (regenerates the radar demo) + the fonts it uses (OFL)
+tools/             make_rmm_gif.py + make_presence_scenes.py (regenerate the radar demos) + the fonts they use (OFL)
 ```
 
 ## Related projects
@@ -175,6 +199,7 @@ tools/             make_rmm_gif.py (regenerates the radar demo) + the fonts it u
 - [baeoremote](https://github.com/baes-cloud/baeoremote): BæoRemote, the B&O Essence-style music knob
 - [esp-rotary-display-ha-hub](https://github.com/baes-cloud/esp-rotary-display-ha-hub): the whole-home hub knob
 - [rpi-departure-board](https://github.com/baes-cloud/rpi-departure-board): the split-flap wall calendar
+- [ha-rmm-replay](https://github.com/baes-cloud/ha-rmm-replay): Radar Replay, 48 hours of radar tracks you can scrub through like a video
 
 ## Privacy
 Everything here was scrubbed before publishing: IP addresses, keys, passwords, emails,
