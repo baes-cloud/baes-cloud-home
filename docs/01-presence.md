@@ -80,8 +80,8 @@ ignores the radar. They head home to their docks when I'm about a kilometre away
 ## Radar replay: rewinding the radar
 Live dots are great until something odd happens at 3 am and you want to know why. **Radar
 Replay** records every radar track and lets me scrub back through the last 48 hours like a
-video. It was built with Google's Antigravity and has its own repo:
-[ha-rmm-replay](https://github.com/baes-cloud/ha-rmm-replay).
+video. Google's Antigravity built the first version; Claude Code looks after it now. It has
+its own repo: [ha-rmm-replay](https://github.com/baes-cloud/ha-rmm-replay).
 
 ![Radar Replay](../images/replay/demo-replay.gif)
 
