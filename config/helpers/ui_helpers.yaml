@@ -25,12 +25,6 @@ input_boolean:
   auto_stay:
     name: Auto-stay
     icon: mdi:party-popper
-  robots_sent_home:
-    name: Robots sent home
-    icon: mdi:robot-vacuum-alert
-  club_lights:
-    name: Club Lights
-    icon: mdi:party-popper
   tv_wash:
     name: TV Wash
     icon: mdi:television-ambient-light
@@ -43,79 +37,20 @@ input_boolean:
   music_follows_me:
     name: Music follows me
     icon: mdi:account-music
+  robots_sent_home:
+    name: Robots sent home
+    icon: mdi:robot-vacuum-alert
+  tv_ambient:
+    name: TV ambient
+    icon: mdi:television-ambient-light
+  light_automations:
+    name: Light automations
+    icon: mdi:motion-sensor
+    initial: true
+  tv_remote_guide:
+    name: TV remote guide
+    icon: mdi:remote-tv
 input_number:
-  club_lights_brightness:
-    name: Club Lights Brightness
-    icon: mdi:brightness-6
-    min: 10.0
-    max: 100.0
-    step: 5.0
-    mode: slider
-    unit_of_measurement: '%'
-    initial: 70.0
-  club_lights_level_hue_play_1:
-    name: Club Lights Level Hue Play 1
-    icon: mdi:lamp
-    min: 0.0
-    max: 100.0
-    step: 5.0
-    mode: slider
-    unit_of_measurement: '%'
-    initial: 100.0
-  club_lights_level_hue_play_2:
-    name: Club Lights Level Hue play 2
-    icon: mdi:lamp
-    min: 0.0
-    max: 100.0
-    step: 5.0
-    mode: slider
-    unit_of_measurement: '%'
-    initial: 100.0
-  club_lights_level_hue_play_3:
-    name: Club Lights Level Hue play 3
-    icon: mdi:lamp
-    min: 0.0
-    max: 100.0
-    step: 5.0
-    mode: slider
-    unit_of_measurement: '%'
-    initial: 100.0
-  club_lights_level_hue_flux_strip_light_1:
-    name: Club Lights Level Hue Flux strip light 1
-    icon: mdi:led-strip-variant
-    min: 0.0
-    max: 100.0
-    step: 5.0
-    mode: slider
-    unit_of_measurement: '%'
-    initial: 40.0
-  club_lights_level_hue_omniglow_striplight_1:
-    name: Club Lights Level Hue OmniGlow striplight 1
-    icon: mdi:led-strip-variant
-    min: 0.0
-    max: 100.0
-    step: 5.0
-    mode: slider
-    unit_of_measurement: '%'
-    initial: 40.0
-  club_lights_speed:
-    name: Club Lights Speed
-    icon: mdi:speedometer
-    min: 25.0
-    max: 300.0
-    step: 25.0
-    mode: slider
-    unit_of_measurement: '%'
-    initial: 100.0
-  club_lights_intensity:
-    name: Club Lights Intensity
-    icon: mdi:sine-wave
-    min: 0.0
-    max: 200.0
-    step: 10.0
-    mode: slider
-    unit_of_measurement: '%'
-    initial: 100.0
   tv_wash_brightness:
     name: TV Wash Brightness
     icon: mdi:brightness-6
@@ -124,29 +59,14 @@ input_number:
     step: 5.0
     mode: slider
     unit_of_measurement: '%'
-    initial: 60.0
-input_select:
-  club_lights_palette:
-    name: Club Lights Palette
-    icon: mdi:palette
-    options:
-    - Neon Club
-    - Teal Lagoon
-    - Miami Night
-    - Pink Couch
-    - Aurora
-    - Deep Ocean
-    - Rave
-  club_lights_mode:
-    name: Club Lights Mode
-    icon: mdi:lightning-bolt
-    options:
-    - Pulse
-    - Chase
-    - Rolling
-    - Wave
-    - Strobe
-    - Club Strobe
-    - Chill
-counter: {}
+input_select: {}
+counter:
+  intercom_missed_rings:
+    name: Intercom missed rings
+    icon: mdi:bell-alert
+    minimum: 0
+    restore: true
+    step: 1
+    initial: 0
+    maximum: null
 timer: {}

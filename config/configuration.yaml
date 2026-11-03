@@ -14,24 +14,18 @@ scene: !include scenes.yaml
 #   presence.yaml     binary_sensor.bae_home (GPS + BLE must agree)
 #   news_digest.yaml  daily news digest pulled from the Unraid nginx container
 #   work_alarms.yaml  calendar-driven Sonos work alarms + Club night sound
+#   club_tv_living_room.yaml  Living Room joins the Club on TV audio + follows its volume
 #   rotary_lists.yaml lists for the rotary displays
 homeassistant:
   packages: !include_dir_named packages
 
 # Zigbee runs on the external Zigbee2MQTT at <mqtt-host>, so there is no zha: block.
-
-# --- Reverse proxy on baelap (added 2026-09-20) --------------------------------
-# ha-proxy (Caddy, <proxy-ip>:8123) gives one permanent address that follows
-# whichever HA is live, so failover needs no DNS change. HA must trust it, or it
-# rejects the forwarded header with 400 and would treat every client as baelap.
-http:
-  use_x_forwarded_for: true
-  trusted_proxies:
-    - <proxy-ip>
-  # Ban a client IP after 5 failed logins (HA is reachable via Cloudflare and Nabu Casa).
-  # To unban: remove its line from /config/ip_bans.yaml and restart.
-  login_attempts_threshold: 5
-
+shell_command:
+  nest_save_clip: >-
+    curl -sf --create-dirs -H @/config/.nest_auth
+    -o "/media/nest/{{ filename }}"
+    "http://127.0.0.1:8123{{ url }}"
+  nest_prune_clips: "find /media/nest -type f -mtime +30 -delete"
 # pysmartthings warns about every unknown Samsung capability at each start; keep its errors only.
 logger:
   default: warning
@@ -39,6 +33,12 @@ logger:
     pysmartthings: error
     # Startup summary (stage timings, slowest integrations, "initialized in Ns"): a few lines per boot.
     homeassistant.bootstrap: info
+  filters:
+    # Plex advertises its public address (Remote Access); from inside the LAN that
+    # route is refused (no NAT loopback), so plexapi logs it every ~2 min while HA
+    # works fine over the local <nas-ip> address. Only hide that one case. 2026-10-08
+    plexapi:
+      - "^https://(?!10-)[0-9a-f-]+\\.[0-9a-f]+\\.plex\\.direct:32400: .*Connection refused"
 
 # --- Recorder ----------------------------------------------------------------
 # Excluded entities stay fully live (automations, RMM, radar card); only their
@@ -86,3 +86,19 @@ recorder:
 # Keeping these means you can still chart occupancy per room and debug why an
 # automation fired -- which is the history you actually want.
 # ---------------------------------------------------------------------------
+
+# Radar Replay recorder (github.com/baes-cloud/ha-rmm-replay)
+rmm_replay:
+  radars:
+    club_apollo_r_pro_1_ld2450:
+      short: apollo
+      label: Apollo R-PRO-1
+      color: "#5CE1E6"
+    ld2450_tracker:
+      short: t1
+      label: Tracker 1 (Bed/Bath)
+      color: "#FF8A80"
+    ld2450_tracker_2:
+      short: t2
+      label: Tracker 2 (Office)
+      color: "#FFD166"

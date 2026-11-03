@@ -1,0 +1,170 @@
+# Clipsal (Wiser) wall switches drive their companion smart lights.
+# Added by Claude 2026-11-03.
+#
+#   Bathroom ceiling switch (light.bathroom_downlights) -> WiZ mirror LED
+#   Kitchen switch          (light.kitchen)             -> kitchen LED + kitchen floor
+#   Club art pendant dimmer (light.club_art_pendants)   -> TV art 1+2, wardrobe USB light 1,
+#                                                          kitchen art, bar lights, console candles
+#
+# RULES (one press = one toggle of the Wiser relay)
+#   Switch goes on  + a companion was already on -> everything off (switch included)
+#   Switch goes on  + everything was off          -> companions on
+#   Switch goes off                               -> companions off
+# So: if anything in the set is on, a press turns it all off; if it's all off, a press
+# turns it all on.
+#
+# DIMMING (art pendants only; the companions are on/off)
+#   Dimming above 10% only changes the pendants.
+#   Dim below 10%  -> the companions that are on switch off ("pendants alone"), and are
+#                     remembered in input_text.club_pendants_dimmed_off.
+#   Dim back above 10% -> the remembered ones come back (all of them if none were stored,
+#                     e.g. the pendants came on already low).
+#   Pressing on while the pendants are below 10% leaves the companions off.
+#
+# PHYSICAL PRESSES ONLY. A press reaches HA as a Zigbee state report with a fresh
+# context: no user, no parent, and not the context of any automation or script run.
+# Anything HA itself does (motion lights, scenes, the remotes, the app) has one of those
+# and is ignored, so the motion automations don't drag the companions along.
+# Known gap: a press within ~5 s of HA switching that same light can be misread as HA.
+#
+# Runs in every mode (normal, light automations paused, auto-stay): this is the wall
+# switch, not a smart-home feature.
+
+input_text:
+  club_pendants_dimmed_off:
+    name: Club pendants · lights switched off by dimming
+    max: 255
+    icon: mdi:brightness-4
+
+automation:
+  - id: clipsal_switch_companions
+    alias: Clipsal switches · companion lights follow
+    description: See packages/clipsal_switches.yaml.
+    mode: queued
+    max: 10
+    triggers:
+      - trigger: state
+        entity_id: light.bathroom_downlights
+        from: ["on", "off"]
+        to: ["on", "off"]
+        id: bathroom
+      - trigger: state
+        entity_id: light.kitchen
+        from: ["on", "off"]
+        to: ["on", "off"]
+        id: kitchen
+      - trigger: state
+        entity_id: light.club_art_pendants
+        from: ["on", "off"]
+        to: ["on", "off"]
+        id: club
+      - trigger: state
+        entity_id: light.club_art_pendants
+        attribute: brightness
+        id: club_dim
+    variables:
+      sets:
+        bathroom:
+          - light.bathroom_mirror_led
+        kitchen:
+          - light.kitchen_led
+          - light.kitchen_kitchen_floor
+        club:
+          - light.tv_art_lights_1
+          - light.tv_art_lights_2
+          - light.bedroom_cupboard_light_ueb
+          - light.kitchen_art
+          - light.bar_lights
+          - light.kitchen_console_candles
+      key: "{{ trigger.id | replace('_dim', '') }}"
+      companions: "{{ sets[key] }}"
+      lit: "{{ companions | select('is_state', 'on') | list }}"
+      # 10% of 255
+      low: 26
+      new_bri: "{{ state_attr('light.club_art_pendants', 'brightness') | int(255) }}"
+      old_bri: "{{ (trigger.from_state.attributes.get('brightness') if trigger.from_state else none) | int(255) }}"
+      stored: >-
+        {{ states('input_text.club_pendants_dimmed_off').split(',')
+           | map('trim') | select('match', '^light[.]') | list }}
+    conditions:
+      - alias: A physical press on the wall switch, not HA
+        condition: template
+        value_template: >-
+          {% set c = trigger.to_state.context %}
+          {% set ha = (states.automation | map(attribute='context.id') | list)
+                    + (states.script | map(attribute='context.id') | list) %}
+          {{ c.user_id is none and c.parent_id is none and c.id not in ha }}
+    actions:
+      - choose:
+          - alias: Pendants dimmed (stayed on, brightness moved)
+            conditions:
+              - "{{ trigger.id == 'club_dim' }}"
+              - "{{ trigger.from_state.state == 'on' and trigger.to_state.state == 'on' }}"
+            sequence:
+              - choose:
+                  - alias: Dimmed below 10% -> pendants alone
+                    conditions: "{{ old_bri >= low and new_bri < low }}"
+                    sequence:
+                      - action: input_text.set_value
+                        target:
+                          entity_id: input_text.club_pendants_dimmed_off
+                        data:
+                          value: "{{ lit | join(',') }}"
+                      - if: "{{ lit | count > 0 }}"
+                        then:
+                          - action: light.turn_off
+                            target:
+                              entity_id: "{{ lit }}"
+                            continue_on_error: true
+                  - alias: Dimmed back above 10% -> companions return
+                    conditions: "{{ old_bri < low and new_bri >= low }}"
+                    sequence:
+                      - action: light.turn_on
+                        target:
+                          entity_id: "{{ stored if stored | count > 0 else companions }}"
+                        continue_on_error: true
+                      - action: input_text.set_value
+                        target:
+                          entity_id: input_text.club_pendants_dimmed_off
+                        data:
+                          value: ""
+
+          - alias: Switch pressed on, something else was already on -> all off
+            conditions:
+              - "{{ trigger.id != 'club_dim' and trigger.to_state.state == 'on' }}"
+              - "{{ lit | count > 0 }}"
+            sequence:
+              - action: light.turn_off
+                target:
+                  entity_id: "{{ [trigger.entity_id] + lit }}"
+                continue_on_error: true
+
+          - alias: Switch pressed on, all was off -> companions on
+            conditions:
+              - "{{ trigger.id != 'club_dim' and trigger.to_state.state == 'on' }}"
+              - alias: Not when the pendants came on below 10% (pendants alone)
+                condition: template
+                value_template: "{{ key != 'club' or new_bri >= low }}"
+            sequence:
+              - action: light.turn_on
+                target:
+                  entity_id: "{{ companions }}"
+                continue_on_error: true
+
+          - alias: Switch pressed off -> companions off
+            conditions:
+              - "{{ trigger.id != 'club_dim' and trigger.to_state.state == 'off' }}"
+            sequence:
+              - if: "{{ lit | count > 0 }}"
+                then:
+                  - action: light.turn_off
+                    target:
+                      entity_id: "{{ lit }}"
+                    continue_on_error: true
+              - if: "{{ key == 'club' }}"
+                then:
+                  - action: input_text.set_value
+                    target:
+                      entity_id: input_text.club_pendants_dimmed_off
+                    data:
+                      value: ""

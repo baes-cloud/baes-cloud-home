@@ -1,0 +1,384 @@
+# Quick wins borrowed from maxi1134's Home-Assistant-Config (added by Claude 2026-10-30):
+#   1. Find my phone (script + voice)          5. DND on the Razr while asleep
+#   2. Pause music during phone calls          6. Presence simulation while away (automations kept private)
+#   3. Duck the Club while Piks listens        7. Mute the Club satellite when nobody's there
+#   4. One auto-timeout for temporary toggles
+# Phone calls (2) need the Companion app "Phone state" sensor enabled on the Razr.
+
+input_boolean:
+  presence_simulation:
+    name: Presence simulation
+    icon: mdi:home-lightbulb-outline
+  sleep_dnd_by_ha:
+    name: Sleep DND set by HA
+    icon: mdi:bell-sleep
+
+template:
+  - binary_sensor:
+      # The S3 Box sits in the kitchen end of the Club; any Club zone counts.
+      # delay_off = how long the room must be empty before the mic is muted.
+      - name: Club in use
+        unique_id: club_in_use_voice
+        device_class: occupancy
+        delay_off: "00:10:00"
+        state: >-
+          {{ is_state('binary_sensor.rmm_default_lounge_occupancy', 'on')
+             or is_state('binary_sensor.rmm_default_sofa_occupancy', 'on')
+             or is_state('binary_sensor.rmm_default_kitchen_occupancy', 'on')
+             or is_state('binary_sensor.sofa_occupied_held', 'on') }}
+
+script:
+  find_my_phone:
+    alias: Find my phone
+    description: Turns DND off, ringer to normal, then plays a loud alert on the Razr
+      (alarm stream at max, works on silent) up to 3 times. Stops early when "Found it"
+      is tapped.
+    mode: single
+    icon: mdi:cellphone-sound
+    sequence:
+      - action: notify.mobile_app_motorola_razr_50
+        continue_on_error: true
+        data:
+          message: command_dnd
+          data:
+            command: "off"
+      - action: notify.mobile_app_motorola_razr_50
+        continue_on_error: true
+        data:
+          message: command_ringer_mode
+          data:
+            command: normal
+      - action: script.turn_on
+        target:
+          entity_id: script.notify_bae
+        data:
+          variables:
+            title: Here I am
+            message: Tap when you've found me.
+            data:
+              tag: find_my_phone
+              priority: high
+              ttl: 0
+              channel: Find phone
+              notification_icon: mdi:cellphone-sound
+              actions:
+                - action: FIND_PHONE_FOUND
+                  title: Found it
+      - repeat:
+          count: 3
+          sequence:
+            - action: notify.mobile_app_motorola_razr_50
+              continue_on_error: true
+              data:
+                message: TTS
+                data:
+                  tts_text: Here I am. Here I am. Here I am.
+                  media_stream: alarm_stream_max
+            - wait_for_trigger:
+                - trigger: event
+                  event_type: mobile_app_notification_action
+                  event_data:
+                    action: FIND_PHONE_FOUND
+              timeout: "00:00:12"
+            - if: "{{ wait.trigger is not none }}"
+              then:
+                - stop: Found
+      - action: script.turn_on
+        target:
+          entity_id: script.notify_bae
+        data:
+          variables:
+            message: clear_notification
+            data:
+              tag: find_my_phone
+
+automation:
+  - id: quick_wins_find_phone_voice
+    alias: Phone · find my phone (voice)
+    description: Local sentence trigger, so it skips Gemini.
+    mode: single
+    triggers:
+      - trigger: conversation
+        command:
+          - "where's my phone"
+          - "where is my phone"
+          - "find my phone"
+          - "ring my phone"
+    actions:
+      - action: script.turn_on
+        target:
+          entity_id: script.find_my_phone
+      - set_conversation_response: Ringing your phone.
+
+  - id: quick_wins_pause_music_on_call
+    alias: Phone · pause music during calls
+    description: Ringing or on a call pauses whatever Sonos is playing, and resumes the
+      same speakers once the call ends. Skipped during auto-stay or guest mode. Needs the
+      Companion app "Phone state" sensor.
+    mode: single
+    max_exceeded: silent
+    triggers:
+      - trigger: state
+        entity_id: sensor.motorola_razr_50_phone_state
+        to:
+          - ringing
+          - offhook
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.bae_home
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.auto_stay
+        state: "off"
+      - condition: state
+        entity_id: input_boolean.guest_mode
+        state: "off"
+    actions:
+      - variables:
+          speakers:
+            - media_player.club
+            - media_player.bedroom_sonos
+            - media_player.office_sonos
+            - media_player.bathroom_sonos
+          club_members: "{{ state_attr('media_player.club', 'group_members') or [] }}"
+          paused: >-
+            {% set ns = namespace(l=[]) %}
+            {% for s in speakers if is_state(s, 'playing')
+                 and (s == 'media_player.club' or s not in club_members) %}
+              {% set ns.l = ns.l + [s] %}
+            {% endfor %}
+            {{ ns.l }}
+      - condition: "{{ paused | count > 0 }}"
+      - action: media_player.media_pause
+        target:
+          entity_id: "{{ paused }}"
+        continue_on_error: true
+      - wait_template: "{{ is_state('sensor.motorola_razr_50_phone_state', 'idle') }}"
+        timeout: "04:00:00"
+        continue_on_timeout: false
+      - delay: 2
+      - variables:
+          resume: "{{ paused | select('is_state', 'paused') | list }}"
+      - condition: "{{ resume | count > 0 }}"
+      - action: media_player.media_play
+        target:
+          entity_id: "{{ resume }}"
+        continue_on_error: true
+
+  - id: quick_wins_duck_club_on_listen
+    alias: Assist · duck the Club while listening
+    description: Halves the Club Sonos volume while the S3 Box listens and answers, then
+      puts it back, unless someone changed the volume in the meantime.
+    mode: single
+    max_exceeded: silent
+    triggers:
+      - trigger: state
+        entity_id: assist_satellite.esp32_s3_box_5a7e34_assist_satellite
+        to: listening
+    conditions:
+      - condition: state
+        entity_id: media_player.club
+        state: playing
+      - "{{ state_attr('media_player.club', 'volume_level') is number }}"
+    actions:
+      - variables:
+          before: "{{ state_attr('media_player.club', 'volume_level') | float }}"
+          ducked: "{{ (before * 0.5) | round(2) }}"
+      - action: media_player.volume_set
+        target:
+          entity_id: media_player.club
+        data:
+          volume_level: "{{ ducked }}"
+        continue_on_error: true
+      - delay: 1
+      - wait_template: >-
+          {{ is_state('assist_satellite.esp32_s3_box_5a7e34_assist_satellite', 'idle') }}
+        timeout: "00:00:45"
+      - delay: 1
+      - if: "{{ ((state_attr('media_player.club', 'volume_level') | float(0)) - ducked) | abs < 0.02 }}"
+        then:
+          - action: media_player.volume_set
+            target:
+              entity_id: media_player.club
+            data:
+              volume_level: "{{ before }}"
+            continue_on_error: true
+
+  - id: quick_wins_mute_satellite_when_empty
+    alias: Assist · mute the Club satellite when nobody's there
+    description: Mic off once the Club has been empty for 10 min (binary_sensor.club_in_use
+      delay_off), back on the moment someone walks in. Hands off during auto-stay (its
+      controller keeps the Box unmuted).
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.club_in_use
+        to: "off"
+        id: empty
+      - trigger: state
+        entity_id: binary_sensor.club_in_use
+        to: "on"
+        id: occupied
+      - trigger: state
+        entity_id: input_boolean.auto_stay
+        to: "off"
+        id: sync
+      - trigger: homeassistant
+        event: start
+        id: sync
+    conditions:
+      - condition: state
+        entity_id: input_boolean.auto_stay
+        state: "off"
+    actions:
+      - choose:
+          - conditions:
+              - "{{ trigger.id == 'occupied' or (trigger.id == 'sync' and is_state('binary_sensor.club_in_use', 'on')) }}"
+              - condition: state
+                entity_id: switch.esp32_s3_box_5a7e34_mute
+                state: "on"
+            sequence:
+              - action: switch.turn_off
+                target:
+                  entity_id: switch.esp32_s3_box_5a7e34_mute
+          - conditions:
+              - "{{ trigger.id == 'empty' or (trigger.id == 'sync' and is_state('binary_sensor.club_in_use', 'off')) }}"
+              - condition: state
+                entity_id: switch.esp32_s3_box_5a7e34_mute
+                state: "off"
+            sequence:
+              - action: switch.turn_on
+                target:
+                  entity_id: switch.esp32_s3_box_5a7e34_mute
+
+  - id: quick_wins_toggle_timeouts
+    alias: Toggles · auto-timeout safety net
+    description: Any temporary mode left on past its limit is put back to normal, with a
+      push. Guest mode is left alone while radar still sees 2+ people.
+    mode: single
+    triggers:
+      - trigger: time_pattern
+        minutes: /10
+      - trigger: homeassistant
+        event: start
+    variables:
+      limits:
+        - entity: input_boolean.auto_stay
+          stuck: "on"
+          hours: 20
+          name: Auto-stay (party mode)
+        - entity: input_boolean.guest_mode
+          stuck: "on"
+          hours: 12
+          name: Guest mode
+        - entity: input_boolean.front_door_keep_unlocked
+          stuck: "on"
+          hours: 12
+          name: Front door keep-unlocked
+      expired: >-
+        {% set ns = namespace(l=[]) %}
+        {% for x in limits %}
+          {% set d, o = x.entity.split('.') %}
+          {% set s = states[d][o] %}
+          {% if s is defined and s is not none and s.state == x.stuck
+                and (now() - s.last_changed).total_seconds() > x.hours * 3600
+                and not (x.entity == 'input_boolean.guest_mode'
+                         and states('sensor.rmm_default_master') | int(0) > 1) %}
+            {% set ns.l = ns.l + [x] %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.l }}
+    conditions:
+      - "{{ expired | count > 0 }}"
+    actions:
+      - repeat:
+          for_each: "{{ expired }}"
+          sequence:
+            - action: "input_boolean.turn_{{ 'off' if repeat.item.stuck == 'on' else 'on' }}"
+              target:
+                entity_id: "{{ repeat.item.entity }}"
+            - action: script.turn_on
+              target:
+                entity_id: script.notify_bae
+              data:
+                variables:
+                  title: "{{ repeat.item.name }} timed out"
+                  message: "It was left {{ 'on' if repeat.item.stuck == 'on' else 'off' }} for over {{ repeat.item.hours }} h, so I put it back to normal."
+                  data:
+                    tag: "timeout_{{ repeat.item.entity }}"
+                    notification_icon: mdi:timer-sand-complete
+
+  - id: quick_wins_sleep_dnd
+    alias: Phone · DND while asleep
+    description: When the fell-asleep automation fires, puts the Razr on priority-only DND
+      (only if DND was off). Undone by the first real morning movement after 05:30, at
+      12:00, or when away mode arms. Only undoes DND that HA set.
+    mode: queued
+    max: 5
+    triggers:
+      - trigger: event
+        event_type: automation_triggered
+        event_data:
+          entity_id: automation.rmm_fell_asleep_all_lights_off
+        id: asleep
+      - trigger: state
+        entity_id: binary_sensor.rmm_default_bed_occupancy
+        to: "off"
+        for: "00:03:00"
+        id: awake
+      - trigger: state
+        entity_id:
+          - binary_sensor.rmm_default_kitchen_occupancy
+          - binary_sensor.rmm_default_office_occupancy
+        to: "on"
+        for: "00:02:00"
+        id: awake
+      - trigger: time
+        at: "12:00:00"
+        id: backstop
+      - trigger: state
+        entity_id: input_boolean.away_mode
+        to: "on"
+        id: backstop
+    actions:
+      - choose:
+          - conditions:
+              - condition: trigger
+                id: asleep
+              - condition: state
+                entity_id: binary_sensor.bae_home
+                state: "on"
+              - condition: state
+                entity_id: sensor.motorola_razr_50_do_not_disturb_sensor
+                state: "off"
+            sequence:
+              - action: notify.mobile_app_motorola_razr_50
+                continue_on_error: true
+                data:
+                  message: command_dnd
+                  data:
+                    command: priority_only
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.sleep_dnd_by_ha
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.sleep_dnd_by_ha
+                state: "on"
+              - "{{ trigger.id == 'backstop' or (now().hour * 60 + now().minute) >= 330 and now().hour < 13 }}"
+            sequence:
+              - if:
+                  - condition: state
+                    entity_id: sensor.motorola_razr_50_do_not_disturb_sensor
+                    state: priority_only
+                then:
+                  - action: notify.mobile_app_motorola_razr_50
+                    continue_on_error: true
+                    data:
+                      message: command_dnd
+                      data:
+                        command: "off"
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.sleep_dnd_by_ha
+

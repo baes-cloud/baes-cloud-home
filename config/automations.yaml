@@ -10,6 +10,10 @@
       minutes: 5
     trigger: state
   conditions:
+  - condition: state
+    entity_id: input_boolean.guests_staying
+    state: 'off'
+    alias: Guest mode (Bae away) is off
   - alias: Auto-stay is off (party mode suspends this)
     condition: state
     entity_id: input_boolean.auto_stay
@@ -147,6 +151,10 @@
     condition: state
     entity_id: input_boolean.auto_stay
     state: 'off'
+  - alias: 'Bae is home (2026-11-03: never while Bae is away)'
+    condition: state
+    entity_id: binary_sensor.bae_home
+    state: 'on'
   - condition: template
     value_template: '{% set d = now().weekday() %}{% set t = now().hour*60 + now().minute
       %}{{ (d in [6,0,1,2,3] and t >= 21*60) or (d in [0,1,2,3,4] and t < 7*60) or
@@ -193,24 +201,24 @@
   mode: single
 - id: '1785400000002'
   alias: 'RMM: Night path to bathroom'
-  description: Getting up at night lights a dim kitchen->wardrobe->bathroom path;
-    back in bed/sofa 2 min (or path empty 4 min) turns it off. Created by Claude 2026-07-25.
+  description: 'Getting up at night: wardrobe LED + bathroom mirror LED only. Starts
+    on the bathroom PIR, or on the office radar zone / office+wardrobe PIRs when the
+    kitchen radar saw someone arrive in the last 2 min (a walk from the sofa; a parked
+    ghost has an old last_changed and can''t pass). No kitchen triggers or kitchen
+    lights: it must never wake anyone on the couch. Off when back
+    in bed/sofa 2 min or office/wardrobe/bathroom empty 4 min. Created by Claude 2026-07-25.'
   triggers:
-  - trigger: state
-    entity_id: binary_sensor.kitchen_motion
-    to: 'on'
-    id: path
   - trigger: state
     entity_id: binary_sensor.bathroom_occupancy_sonoff_snzb_06p
     to: 'on'
     id: path
   - trigger: state
     entity_id:
-    - binary_sensor.rmm_default_kitchen_occupancy
-    - binary_sensor.rmm_default_wardrobe_occupancy
-    - binary_sensor.rmm_default_bathroom_occupancy
+    - binary_sensor.rmm_default_office_occupancy
+    - binary_sensor.bathroom_motion
+    - binary_sensor.office_motion
     to: 'on'
-    id: path
+    id: via_kitchen
   - trigger: state
     entity_id:
     - binary_sensor.rmm_default_bed_occupancy
@@ -220,7 +228,7 @@
     id: return
   - trigger: state
     entity_id:
-    - binary_sensor.rmm_default_kitchen_occupancy
+    - binary_sensor.rmm_default_office_occupancy
     - binary_sensor.rmm_default_wardrobe_occupancy
     - binary_sensor.rmm_default_bathroom_occupancy
     to: 'off'
@@ -243,23 +251,10 @@
       sequence:
       - action: light.turn_on
         target:
-          entity_id: light.kitchen
-        data:
-          brightness_pct: 25
-      - action: light.turn_on
-        target:
-          entity_id:
-          - light.wardrobe
-      - action: light.turn_on
+          entity_id: light.send_nudes
         data:
           brightness_pct: 40
-        target:
-          entity_id: light.send_nudes
-      - action: light.turn_on
-        metadata: {}
-        target:
-          entity_id: light.wardrobes
-        data: {}
+        continue_on_error: true
       - alias: WiZ mirror LED last, and only if reachable (pywizlight errors abort
           the run)
         if:
@@ -268,10 +263,37 @@
             ''unknown''] }}'
         then:
         - action: light.turn_on
-          metadata: {}
-          data: {}
           target:
             entity_id: light.bathroom_mirror_led
+          data: {}
+          continue_on_error: true
+    - conditions:
+      - condition: trigger
+        id: via_kitchen
+      - alias: Someone walked through the kitchen in the last 2 min (not a ghost parked
+          there)
+        condition: template
+        value_template: '{% set k = states.binary_sensor.rmm_default_kitchen_occupancy
+          %}{{ k is not none and (k.state == ''on'' or k.state == ''off'') and (now()
+          - k.last_changed).total_seconds() < 120 }}'
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.send_nudes
+        data:
+          brightness_pct: 40
+        continue_on_error: true
+      - alias: WiZ mirror LED last, and only if reachable (pywizlight errors abort
+          the run)
+        if:
+        - condition: template
+          value_template: '{{ states(''light.bathroom_mirror_led'') not in [''unavailable'',
+            ''unknown''] }}'
+        then:
+        - action: light.turn_on
+          target:
+            entity_id: light.bathroom_mirror_led
+          data: {}
           continue_on_error: true
     - conditions:
       - condition: or
@@ -281,7 +303,7 @@
         - condition: trigger
           id: away
       - condition: state
-        entity_id: binary_sensor.rmm_default_kitchen_occupancy
+        entity_id: binary_sensor.rmm_default_office_occupancy
         state: 'off'
       - condition: state
         entity_id: binary_sensor.rmm_default_wardrobe_occupancy
@@ -292,11 +314,8 @@
       sequence:
       - action: light.turn_off
         target:
-          entity_id:
-          - light.kitchen
-          - light.wardrobe
-          - light.send_nudes
-        data: {}
+          entity_id: light.send_nudes
+        continue_on_error: true
       - alias: WiZ mirror LED last, and only if reachable
         if:
         - condition: template
@@ -306,13 +325,14 @@
         - action: light.turn_off
           target:
             entity_id: light.bathroom_mirror_led
-          data: {}
           continue_on_error: true
   mode: restart
 - id: '1785400000003'
   alias: 'RMM: Kitchen presence light'
   description: PIR instant-on (kitchen_motion, physically moved back to the kitchen
-    2026-07-25) + radar-zone hold. Created by Claude 2026-07-25.
+    2026-07-25) + radar-zone hold. Created by Claude 2026-07-25. Off branch treats
+    an unavailable PIR as no motion (dead PIR stranded the LED on). Changed by Claude
+    2026-10-25.
   triggers:
   - trigger: state
     entity_id:
@@ -350,9 +370,12 @@
     - conditions:
       - condition: trigger
         id: 'off'
-      - condition: state
-        entity_id: binary_sensor.kitchen_motion
-        state: 'off'
+      - condition: not
+        alias: PIR not reporting motion (unavailable counts as no motion)
+        conditions:
+        - condition: state
+          entity_id: binary_sensor.kitchen_motion
+          state: 'on'
       sequence:
       - action: light.turn_off
         target:
@@ -842,6 +865,10 @@
     to: 'off'
     for: 00:05:00
   conditions:
+  - condition: state
+    entity_id: input_boolean.guests_staying
+    state: 'off'
+    alias: Guest mode (Bae away) is off
   - alias: Auto-stay is off (party mode suspends this)
     condition: state
     entity_id: input_boolean.auto_stay
@@ -925,6 +952,14 @@
     condition: template
     value_template: '{{ trigger.id == ''person'' or is_state(''binary_sensor.roborock_active'',''off'')
       }}'
+  - alias: 'Radar alone can''t disarm while the phone is away: needs phone home, or
+      the door/lock moved in the last 10 min (otherwise the intruder alert gets its
+      chance)'
+    condition: template
+    value_template: '{{ trigger.id == ''person'' or is_state(''binary_sensor.bae_home'',''on'')
+      or is_state(''device_tracker.motorola_razr_50'',''home'') or (now() - states.binary_sensor.ikea_of_sweden_parasoll_door_window_sensor.last_changed).total_seconds()
+      < 600 or (now() - states.lock.lock_pro_0fa0.last_changed).total_seconds() <
+      600 }}'
   actions:
   - action: input_boolean.turn_off
     target:
@@ -942,6 +977,10 @@
     above: 0
     for: 00:01:00
   conditions:
+  - condition: state
+    entity_id: input_boolean.guests_staying
+    state: 'off'
+    alias: Guest mode (Bae away) is off
   - condition: state
     entity_id: input_boolean.away_mode
     state: 'on'
@@ -1369,14 +1408,17 @@
   mode: single
 - id: '1785400000022'
   alias: 'RMM: Weekday scene schedule'
-  description: 'Mon-Fri: script.club at sunset while home; Sun-Thu 21:00 scene.night
-    (which itself dims couch/leds/pendants to night ambiance) + accent lights off.
-    Created by Claude 2026-07-25. (Sunrise Santorini removed 2026-09-22 — morning
-    lights now come from the work alarms, packages/work_alarms.yaml.)'
+  description: 'Mon-Fri 18:00 while home: script.club (the Gay scene: couch pastel,
+    art 75%, bar, candles), then Hue Disturbia 2 (dynamic) on the Hue lights. Sun-Thu
+    21:00: script.long_blue (scene.night), same as a long press of BLUE. Created by
+    Claude 2026-07-25. 2026-11-03: evening moved from sunset to 18:00 and gets Disturbia
+    2 on the Hue lights (Bae''s request); 21:00 is now exactly long blue. While light
+    automations are paused, packages/paused_lights_schedule.yaml does this on lit
+    lights only.'
   triggers:
-  - trigger: sun
-    event: sunset
-    id: sunset
+  - trigger: time
+    at: '18:00:00'
+    id: evening
   - trigger: time
     at: '21:00:00'
     id: night
@@ -1385,11 +1427,15 @@
     condition: state
     entity_id: input_boolean.auto_stay
     state: 'off'
+  - alias: 'Bae is home (2026-11-03: never while Bae is away)'
+    condition: state
+    entity_id: binary_sensor.bae_home
+    state: 'on'
   actions:
   - choose:
     - conditions:
       - condition: trigger
-        id: sunset
+        id: evening
       - condition: time
         weekday:
         - mon
@@ -1401,9 +1447,15 @@
         entity_id: binary_sensor.bae_home
         state: 'on'
       sequence:
-      - action: script.turn_on
+      - alias: Club (Gay) scene for everything
+        action: script.club
+      - delay: 00:00:02
+      - alias: 'Hue lights: Disturbia 2 (dynamic)'
+        action: hue.activate_scene
         target:
-          entity_id: script.club
+          entity_id: scene.home_home_disturbia_2
+        data:
+          dynamic: true
     - conditions:
       - condition: trigger
         id: night
@@ -1415,14 +1467,8 @@
         - wed
         - thu
       sequence:
-      - action: scene.turn_on
-        target:
-          entity_id: scene.night
-      - delay: 00:00:02
-      - action: light.turn_off
-        target:
-          entity_id:
-          - light.club_accent_lights
+      - alias: Same as a long press of BLUE
+        action: script.long_blue
   mode: queued
   max: 5
 - id: '1785400000023'
@@ -1436,7 +1482,9 @@
     hold Mon-Fri 08:00-18:00) and requires the desk PIR to be off. Sofa presence now
     comes from binary_sensor.sofa_occupied_held (RMM sofa, held while the LD2412 still
     sees someone after RMM loses a still person), so sitting still no longer turns
-    the couch lights off. Changed by Claude 2026-10-04.'
+    the couch lights off. Changed by Claude 2026-10-04. Kitchen branch now clears
+    the whole kitchen group (LED + floor) and treats an unavailable PIR as no motion.
+    Changed by Claude 2026-10-25.'
   triggers:
   - trigger: time_pattern
     minutes: /5
@@ -1460,16 +1508,19 @@
           and (now() - states.binary_sensor.rmm_default_kitchen_occupancy.last_changed).total_seconds()
           > 180 }}'
       - condition: template
-        value_template: '{{ is_state(''light.kitchen'',''on'') or is_state(''light.kitchen_art'',''on'')
+        value_template: '{{ is_state(''light.kitchen_group'',''on'') or is_state(''light.kitchen_art'',''on'')
           }}'
-      - condition: state
-        entity_id: binary_sensor.kitchen_motion
-        state: 'off'
+      - condition: not
+        alias: PIR not reporting motion (unavailable counts as no motion)
+        conditions:
+        - condition: state
+          entity_id: binary_sensor.kitchen_motion
+          state: 'on'
       sequence:
       - action: light.turn_off
         target:
           entity_id:
-          - light.kitchen
+          - light.kitchen_group
         data: {}
   - choose:
     - conditions:
@@ -2348,8 +2399,6 @@
   alias: Front door · push to Razr
   description: Every lock/unlock, on a quiet channel. Replaces itself rather than
     stacking.
-  mode: queued
-  max: 10
   triggers:
   - trigger: state
     entity_id: lock.lock_pro_0fa0
@@ -2359,6 +2408,29 @@
     entity_id: lock.lock_pro_0fa0
     to: locked
     id: locked
+  actions:
+  - alias: Not while guests are staying (Bae away)
+    if:
+    - condition: state
+      entity_id: input_boolean.guests_staying
+      state: 'off'
+    then:
+    - action: script.turn_on
+      target:
+        entity_id: script.notify_bae
+      data:
+        variables:
+          title: '{{ heading }}'
+          message: '{{ now().strftime(''%-I:%M %p'') }} · {{ detail }}'
+          data:
+            channel: Front door
+            importance: low
+            tag: front_door_lock_state
+            group: front_door
+            notification_icon: '{{ ''mdi:lock-open-variant'' if trigger.id == ''unlocked''
+              else ''mdi:lock'' }}'
+  mode: queued
+  max: 10
   variables:
     heading: '{{ ''Front door unlocked'' if trigger.id == ''unlocked'' else ''Front
       door locked'' }}'
@@ -2367,21 +2439,6 @@
       }}'
     detail: '{% if is_state(''input_boolean.front_door_tag_grace'', ''on'') %}tag
       scan · relocking in 30s {%- else %}{{ door }}{% endif %}'
-  actions:
-  - action: script.turn_on
-    target:
-      entity_id: script.notify_bae
-    data:
-      variables:
-        title: '{{ heading }}'
-        message: '{{ now().strftime(''%-I:%M %p'') }} · {{ detail }}'
-        data:
-          channel: Front door
-          importance: low
-          tag: front_door_lock_state
-          group: front_door
-          notification_icon: '{{ ''mdi:lock-open-variant'' if trigger.id == ''unlocked''
-            else ''mdi:lock'' }}'
 - id: '1788110000004'
   alias: Front door · lock when I leave
   description: One minute after binary_sensor.bae_home goes off (Companion app GPS
@@ -2407,17 +2464,23 @@
   - action: lock.lock
     target:
       entity_id: lock.lock_pro_0fa0
-  - action: script.turn_on
-    target:
-      entity_id: script.notify_bae
-    data:
-      variables:
-        title: Front door locked
-        message: You left and it was still unlocked — locked it for you.
-        data:
-          channel: Front door
-          importance: default
-          tag: front_door_away_autolock
+  - alias: Not while guests are staying (Bae away)
+    if:
+    - condition: state
+      entity_id: input_boolean.guests_staying
+      state: 'off'
+    then:
+    - action: script.turn_on
+      target:
+        entity_id: script.notify_bae
+      data:
+        variables:
+          title: Front door locked
+          message: You left and it was still unlocked — locked it for you.
+          data:
+            channel: Front door
+            importance: default
+            tag: front_door_away_autolock
   mode: single
 - id: '1788110000005'
   alias: Front door · ALERT unlocked while away
@@ -2429,6 +2492,10 @@
     entity_id: lock.lock_pro_0fa0
     to: unlocked
   conditions:
+  - condition: state
+    entity_id: input_boolean.guests_staying
+    state: 'off'
+    alias: Guest mode (Bae away) is off
   - alias: Auto-stay is off (party mode suspends this)
     condition: state
     entity_id: input_boolean.auto_stay
@@ -2582,22 +2649,28 @@
   - wait_template: '{{ is_state(''lock.lock_pro_0fa0'', ''locked'') }}'
     timeout: 00:00:30
     continue_on_timeout: true
-  - action: script.turn_on
-    target:
-      entity_id: script.notify_bae
-    data:
-      variables:
-        title: Front door locked
-        message: '{{ ''Unlocked for 10 minutes'' if trigger.id == ''backstop'' else
-          ''Routine check found it unlocked'' }} — {{ ''locked it'' if is_state(''lock.lock_pro_0fa0'',
-          ''locked'') else ''lock did not confirm'' }}{{ '', door was open'' if is_state(''binary_sensor.front_door_open'',
-          ''on'') else '''' }}.'
-        data:
-          channel: Front door
-          importance: low
-          tag: front_door_lock_state
-          group: front_door
-          notification_icon: mdi:lock-clock
+  - alias: Not while guests are staying (Bae away)
+    if:
+    - condition: state
+      entity_id: input_boolean.guests_staying
+      state: 'off'
+    then:
+    - action: script.turn_on
+      target:
+        entity_id: script.notify_bae
+      data:
+        variables:
+          title: Front door locked
+          message: '{{ ''Unlocked for 10 minutes'' if trigger.id == ''backstop'' else
+            ''Routine check found it unlocked'' }} — {{ ''locked it'' if is_state(''lock.lock_pro_0fa0'',
+            ''locked'') else ''lock did not confirm'' }}{{ '', door was open'' if
+            is_state(''binary_sensor.front_door_open'', ''on'') else '''' }}.'
+          data:
+            channel: Front door
+            importance: low
+            tag: front_door_lock_state
+            group: front_door
+            notification_icon: mdi:lock-clock
   - delay: 00:00:05
   - action: input_boolean.turn_off
     target:
@@ -3163,39 +3236,6 @@
     - automation.front_door_ble_arrival_unlock_welcome
     - automation.front_door_lock_when_i_leave
     - automation.front_door_sonos_announcement
-- id: ma_club_hue_light_sync
-  alias: Club Lights follow Club
-  description: When the Club Sonos plays from Music Assistant and Club Lights is on,
-    join the Club Lights beat-sync player to it. Only works
-    for MA-played music, not Spotify/TV played natively on the Sonos.
-  triggers:
-  - trigger: state
-    entity_id: media_player.club_2
-    to: playing
-    for:
-      seconds: 2
-  - trigger: state
-    entity_id: input_boolean.club_lights
-    to: 'on'
-  conditions:
-  - condition: state
-    entity_id: input_boolean.club_lights
-    state: 'on'
-  - condition: state
-    entity_id: media_player.club_2
-    state: playing
-  - condition: template
-    value_template: '{{ state_attr("media_player.club_2","app_id") == "music_assistant"
-      and "media_player.club_lights" not in (state_attr("media_player.club_2","group_members")
-      or []) }}'
-  actions:
-  - action: media_player.join
-    target:
-      entity_id: media_player.club_2
-    data:
-      group_members:
-      - media_player.club_lights
-  mode: single
 - id: '1789700000001'
   alias: 'RMM: Sonos morning volume reset'
   description: Once each morning, cap the non-Club Sonos rooms at 20 (never raises
@@ -3637,189 +3677,6 @@
                 - action: RR_HOME
                   title: Send to dock
   mode: queued
-- id: '1791000000001'
-  alias: Robots · dock when I'm nearly home
-  description: 'While away mode is on and I''m within 1 km of home and heading towards
-    it (Proximity: sensor.home_bae_distance / direction_of_travel), send whichever
-    robot is out back to its dock and stop the SL68 follow-up/backup cleans. Sets
-    input_boolean.robots_sent_home so the SL68 doesn''t start after the Roborock docks
-    (clears whenever away mode changes). Added by Claude 2026-10-06.'
-  triggers:
-  - trigger: numeric_state
-    entity_id: sensor.home_bae_distance
-    below: 1000
-    id: near
-  - trigger: state
-    entity_id: sensor.home_bae_direction_of_travel
-    to: towards
-    id: near
-  - trigger: state
-    entity_id: input_boolean.away_mode
-    id: reset
-  conditions: []
-  actions:
-  - choose:
-    - conditions:
-      - condition: trigger
-        id: reset
-      sequence:
-      - action: input_boolean.turn_off
-        target:
-          entity_id: input_boolean.robots_sent_home
-    - conditions:
-      - condition: trigger
-        id: near
-      - condition: state
-        entity_id: input_boolean.away_mode
-        state: 'on'
-      - condition: state
-        entity_id: input_boolean.robots_sent_home
-        state: 'off'
-      - condition: numeric_state
-        entity_id: sensor.home_bae_distance
-        below: 1000
-      - condition: state
-        entity_id: sensor.home_bae_direction_of_travel
-        state: towards
-      sequence:
-      - action: input_boolean.turn_on
-        target:
-          entity_id: input_boolean.robots_sent_home
-      - alias: Stop the SL68 follow-up/backup chain so it does not start another run
-        action: script.turn_off
-        target:
-          entity_id:
-          - script.sl68_followup_clean
-          - script.sl68_smart_clean_once
-      - variables:
-          out: '{{ [''vacuum.roborock_qrevo_master'', ''vacuum.sl68''] | select(''is_state'',
-            [''cleaning'', ''paused'', ''returning'']) | list }}'
-      - if:
-        - condition: template
-          value_template: '{{ out | count > 0 }}'
-        then:
-        - action: vacuum.return_to_base
-          target:
-            entity_id: '{{ out }}'
-        - action: script.turn_on
-          target:
-            entity_id: script.notify_bae
-          data:
-            variables:
-              title: Robots heading home
-              message: Looks like you're nearly home, so {{ out | map('state_attr',
-                'friendly_name') | join(' and ') }} {{ 'is' if out | count == 1 else
-                'are' }} going back to the dock.
-              data:
-                tag: roborock_away
-                group: roborock
-                channel: Roborock
-  mode: queued
-  max: 5
-- id: '1791000000002'
-  alias: SL68 · backup when the Roborock gets stuck
-  description: If the Roborock stops with an error for 3 minutes in the middle of
-    an away-mode clean (stuck, trapped, shut in a room, can't get back to the dock),
-    send the SL68 out for one smart clean as a backup and tell me how it went. The
-    radar automations stay paused until I get home, because the stuck Roborock is
-    still out. Added by Claude 2026-10-06.
-  triggers:
-  - trigger: state
-    entity_id: vacuum.roborock_qrevo_master
-    to: error
-    for: 00:03:00
-  - trigger: state
-    entity_id: sensor.roborock_qrevo_master_vacuum_error
-    to:
-    - lidar_blocked
-    - bumper_stuck
-    - wheels_suspended
-    - cliff_sensor_error
-    - main_brush_jammed
-    - side_brush_jammed
-    - wheels_jammed
-    - robot_trapped
-    - robot_tilted
-    - side_brush_error
-    - fan_error
-    - vertical_bumper_pressed
-    - dock_locator_error
-    - return_to_dock_fail
-    - nogo_zone_detected
-    - vibrarise_jammed
-    - robot_on_carpet
-    - invisible_wall_detected
-    - cannot_cross_carpet
-    - compass_error
-    - optical_flow_sensor_dirt
-    - wall_sensor_dirty
-    - filter_blocked
-    - no_dustbin
-    - internal_error
-    for: 00:03:00
-  conditions:
-  - alias: Stopped away from the dock
-    condition: state
-    entity_id: vacuum.roborock_qrevo_master
-    state:
-    - error
-    - idle
-    - paused
-  - condition: state
-    entity_id: input_boolean.away_mode
-    state: 'on'
-  - condition: state
-    entity_id: input_boolean.auto_stay
-    state: 'off'
-  - condition: state
-    entity_id: input_boolean.robots_sent_home
-    state: 'off'
-  - alias: An away-mode clean is running (Roborock · clean while away paused the radar
-      automations)
-    condition: state
-    entity_id: automation.rmm_kitchen_presence_light
-    state: 'off'
-  - condition: state
-    entity_id:
-    - script.sl68_followup_clean
-    - script.sl68_smart_clean_once
-    state: 'off'
-  actions:
-  - variables:
-      err: '{{ states(''sensor.roborock_qrevo_master_vacuum_error'') | replace(''_'',
-        '' '') }}'
-      room: '{{ states(''sensor.roborock_qrevo_master_current_room'') }}'
-  - action: script.turn_on
-    target:
-      entity_id: script.notify_bae
-    data:
-      variables:
-        title: Roborock is stuck
-        message: It reports {{ err }}{{ ' in the ' ~ room if room not in ['unknown',
-          'unavailable', ''] else '' }}, so the SL68 is going out as a backup.
-        data:
-          tag: roborock_stuck
-          group: roborock
-          channel: Roborock
-  - action: script.sl68_smart_clean_once
-    data:
-      go: true
-    response_variable: sl68
-  - action: script.turn_on
-    target:
-      entity_id: script.notify_bae
-    data:
-      variables:
-        title: SL68 backup clean
-        message: '{% if sl68.ok %}Done: {{ sl68.area }} m² in {{ sl68.minutes }} min.
-          The Roborock still needs rescuing.{% else %}It didn''t finish: {{ sl68.reason
-          }}.{% endif %}'
-        data:
-          tag: roborock_stuck
-          group: roborock
-          channel: Roborock
-  mode: single
-  max_exceeded: silent
 - id: '1790500000004'
   alias: Washer · done
   description: Washer finished → Washer done flag on (shows on the remotes), push
@@ -3828,7 +3685,7 @@
     or when the next wash starts.
   triggers:
   - trigger: state
-    entity_id: sensor.washer_job_state
+    entity_id: sensor.samsung_washer_da_wm_tp2_20_common_progress
     to: finish
     id: done
   - trigger: state
@@ -3837,8 +3694,8 @@
     for: 00:45:00
     id: remind
   - trigger: state
-    entity_id: sensor.washer_machine_state
-    to: run
+    entity_id: sensor.samsung_washer_da_wm_tp2_20_common_machine_state
+    to: active
     id: start
   - trigger: event
     event_type: mobile_app_notification_action
@@ -3859,19 +3716,25 @@
       - action: input_boolean.turn_on
         target:
           entity_id: input_boolean.washer_done
-      - action: script.turn_on
-        target:
-          entity_id: script.notify_bae
-        data:
-          variables:
-            title: Washing's done
-            message: Finished at {{ now().strftime('%-I:%M %p') }}.
-            data:
-              tag: washer
-              channel: Washer
-              actions:
-              - action: WASHER_EMPTIED
-                title: Emptied
+      - alias: Not while guests are staying (Bae away)
+        if:
+        - condition: state
+          entity_id: input_boolean.guests_staying
+          state: 'off'
+        then:
+        - action: script.turn_on
+          target:
+            entity_id: script.notify_bae
+          data:
+            variables:
+              title: Washing's done
+              message: Finished at {{ now().strftime('%-I:%M %p') }}.
+              data:
+                tag: washer
+                channel: Washer
+                actions:
+                - action: WASHER_EMPTIED
+                  title: Emptied
       - if:
         - condition: state
           entity_id: binary_sensor.bae_home
@@ -3902,20 +3765,26 @@
       - condition: trigger
         id: remind
       sequence:
-      - action: script.turn_on
-        target:
-          entity_id: script.notify_bae
-        data:
-          variables:
-            title: Washing's still in the machine
-            message: Done {{ relative_time(states.input_boolean.washer_done.last_changed)
-              }} ago.
-            data:
-              tag: washer
-              channel: Washer
-              actions:
-              - action: WASHER_EMPTIED
-                title: Emptied
+      - alias: Not while guests are staying (Bae away)
+        if:
+        - condition: state
+          entity_id: input_boolean.guests_staying
+          state: 'off'
+        then:
+        - action: script.turn_on
+          target:
+            entity_id: script.notify_bae
+          data:
+            variables:
+              title: Washing's still in the machine
+              message: Done {{ relative_time(states.input_boolean.washer_done.last_changed)
+                }} ago.
+              data:
+                tag: washer
+                channel: Washer
+                actions:
+                - action: WASHER_EMPTIED
+                  title: Emptied
       - if:
         - condition: state
           entity_id: binary_sensor.bae_home
@@ -3979,6 +3848,10 @@
     - unavailable
     - unknown
   conditions:
+  - condition: state
+    entity_id: input_boolean.guests_staying
+    state: 'off'
+    alias: Guest mode (Bae away) is off
   - condition: or
     conditions:
     - condition: state
@@ -4410,3 +4283,592 @@
       seconds: 20
   - action: automation.reload
   mode: single
+- id: '1791000000001'
+  alias: Robots · dock when I'm nearly home
+  description: 'While away mode is on and I''m within 1 km of home and heading towards
+    it (Proximity: sensor.home_bae_distance / direction_of_travel), send whichever
+    robot is out back to its dock and stop the SL68 follow-up/backup cleans. Sets
+    input_boolean.robots_sent_home so the SL68 doesn''t start after the Roborock docks
+    (clears whenever away mode changes). Added by Claude 2026-10-06.'
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.home_bae_distance
+    below: 1000
+    id: near
+  - trigger: state
+    entity_id: sensor.home_bae_direction_of_travel
+    to: towards
+    id: near
+  - trigger: state
+    entity_id: input_boolean.away_mode
+    id: reset
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: reset
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.robots_sent_home
+    - conditions:
+      - condition: trigger
+        id: near
+      - condition: state
+        entity_id: input_boolean.away_mode
+        state: 'on'
+      - condition: state
+        entity_id: input_boolean.robots_sent_home
+        state: 'off'
+      - condition: numeric_state
+        entity_id: sensor.home_bae_distance
+        below: 1000
+      - condition: state
+        entity_id: sensor.home_bae_direction_of_travel
+        state: towards
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.robots_sent_home
+      - alias: Stop the SL68 follow-up/backup chain so it does not start another run
+        action: script.turn_off
+        target:
+          entity_id:
+          - script.sl68_followup_clean
+          - script.sl68_smart_clean_once
+      - variables:
+          out: '{{ [''vacuum.roborock_qrevo_master'', ''vacuum.sl68''] | select(''is_state'',
+            [''cleaning'', ''paused'', ''returning'']) | list }}'
+      - if:
+        - condition: template
+          value_template: '{{ out | count > 0 }}'
+        then:
+        - action: vacuum.return_to_base
+          target:
+            entity_id: '{{ out }}'
+        - action: script.turn_on
+          target:
+            entity_id: script.notify_bae
+          data:
+            variables:
+              title: Robots heading home
+              message: Looks like you're nearly home, so {{ out | map('state_attr',
+                'friendly_name') | join(' and ') }} {{ 'is' if out | count == 1 else
+                'are' }} going back to the dock.
+              data:
+                tag: roborock_away
+                group: roborock
+                channel: Roborock
+  mode: queued
+  max: 5
+- id: '1791000000002'
+  alias: SL68 · backup when the Roborock gets stuck
+  description: If the Roborock stops with an error for 3 minutes in the middle of
+    an away-mode clean (stuck, trapped, shut in a room, can't get back to the dock),
+    send the SL68 out for one smart clean as a backup and tell me how it went. The
+    radar automations stay paused until I get home, because the stuck Roborock is
+    still out. Added by Claude 2026-10-06.
+  triggers:
+  - trigger: state
+    entity_id: vacuum.roborock_qrevo_master
+    to: error
+    for: 00:03:00
+  - trigger: state
+    entity_id: sensor.roborock_qrevo_master_vacuum_error
+    to:
+    - lidar_blocked
+    - bumper_stuck
+    - wheels_suspended
+    - cliff_sensor_error
+    - main_brush_jammed
+    - side_brush_jammed
+    - wheels_jammed
+    - robot_trapped
+    - robot_tilted
+    - side_brush_error
+    - fan_error
+    - vertical_bumper_pressed
+    - dock_locator_error
+    - return_to_dock_fail
+    - nogo_zone_detected
+    - vibrarise_jammed
+    - robot_on_carpet
+    - invisible_wall_detected
+    - cannot_cross_carpet
+    - compass_error
+    - optical_flow_sensor_dirt
+    - wall_sensor_dirty
+    - filter_blocked
+    - no_dustbin
+    - internal_error
+    for: 00:03:00
+  conditions:
+  - alias: Stopped away from the dock
+    condition: state
+    entity_id: vacuum.roborock_qrevo_master
+    state:
+    - error
+    - idle
+    - paused
+  - condition: state
+    entity_id: input_boolean.away_mode
+    state: 'on'
+  - condition: state
+    entity_id: input_boolean.auto_stay
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.robots_sent_home
+    state: 'off'
+  - alias: An away-mode clean is running (Roborock · clean while away paused the radar
+      automations)
+    condition: state
+    entity_id: automation.rmm_kitchen_presence_light
+    state: 'off'
+  - condition: state
+    entity_id:
+    - script.sl68_followup_clean
+    - script.sl68_smart_clean_once
+    state: 'off'
+  actions:
+  - variables:
+      err: '{{ states(''sensor.roborock_qrevo_master_vacuum_error'') | replace(''_'',
+        '' '') }}'
+      room: '{{ states(''sensor.roborock_qrevo_master_current_room'') }}'
+  - action: script.turn_on
+    target:
+      entity_id: script.notify_bae
+    data:
+      variables:
+        title: Roborock is stuck
+        message: It reports {{ err }}{{ ' in the ' ~ room if room not in ['unknown',
+          'unavailable', ''] else '' }}, so the SL68 is going out as a backup.
+        data:
+          tag: roborock_stuck
+          group: roborock
+          channel: Roborock
+  - action: script.sl68_smart_clean_once
+    data:
+      go: true
+    response_variable: sl68
+  - action: script.turn_on
+    target:
+      entity_id: script.notify_bae
+    data:
+      variables:
+        title: SL68 backup clean
+        message: '{% if sl68.ok %}Done: {{ sl68.area }} m² in {{ sl68.minutes }} min.
+          The Roborock still needs rescuing.{% else %}It didn''t finish: {{ sl68.reason
+          }}.{% endif %}'
+        data:
+          tag: roborock_stuck
+          group: roborock
+          channel: Roborock
+  mode: single
+  max_exceeded: silent
+- id: tv_pc_idle_off
+  alias: TV · off when the PC is idle and the lounge is empty
+  description: Turns the Serif off when it's showing baehp (HDMI1), nobody has touched
+    the PC for 45 min, nothing is playing on it, and the RMM lounge + sofa zones have
+    been empty for 10 min. Skipped in auto-stay (party) mode. Built 2026-10-08, source
+    in ~/Documents/claude/tv-pc.
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.baehp_idle
+    above: 2700
+  - trigger: state
+    entity_id: binary_sensor.rmm_default_lounge_occupancy
+    to: 'off'
+    for:
+      minutes: 10
+  - trigger: state
+    entity_id: binary_sensor.rmm_default_sofa_occupancy
+    to: 'off'
+    for:
+      minutes: 10
+  conditions:
+  - condition: state
+    entity_id: input_boolean.auto_stay
+    state: 'off'
+  - condition: state
+    entity_id: media_player.55_the_serif_3
+    state: 'on'
+  - condition: state
+    entity_id: media_player.55_the_serif_3
+    attribute: source
+    state: hdmi1
+  - condition: numeric_state
+    entity_id: sensor.baehp_idle
+    above: 2700
+  - condition: state
+    entity_id: binary_sensor.baehp_speaker_used
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.rmm_default_lounge_occupancy
+    state: 'off'
+    for:
+      minutes: 10
+  - condition: state
+    entity_id: binary_sensor.rmm_default_sofa_occupancy
+    state: 'off'
+    for:
+      minutes: 10
+  actions:
+  - action: media_player.turn_off
+    target:
+      entity_id: media_player.55_the_serif_3
+  mode: single
+- id: tv_pc_wake_on_input
+  alias: TV · wake to the PC on keyboard or mouse
+  description: Touching baehp's keyboard or mouse after 2+ min idle turns the Serif
+    on (if needed) and switches it to HDMI1, baehp's input. The HP has no HDMI-CEC,
+    so SmartThings does it. sensor.baehp_idle comes from LNXlink. Built 2026-10-08,
+    source in ~/Documents/claude/tv-pc.
+  triggers:
+  - trigger: state
+    entity_id: sensor.baehp_idle
+  conditions:
+  - alias: Idle counter just reset after at least 2 minutes
+    condition: template
+    value_template: '{{ trigger.from_state is not none and trigger.to_state is not
+      none and trigger.from_state.state | float(0) >= 120 and trigger.to_state.state
+      | float(999) < 30 }}'
+  actions:
+  - choose:
+    - alias: 'TV is off: turn it on, then pick the PC'
+      conditions:
+      - condition: not
+        conditions:
+        - condition: state
+          entity_id: media_player.55_the_serif_3
+          state: 'on'
+      sequence:
+      - action: media_player.turn_on
+        target:
+          entity_id: media_player.55_the_serif_3
+      - wait_template: '{{ is_state(''media_player.55_the_serif_3'', ''on'') }}'
+        timeout:
+          seconds: 20
+        continue_on_timeout: true
+      - delay:
+          seconds: 3
+      - action: media_player.select_source
+        target:
+          entity_id: media_player.55_the_serif_3
+        data:
+          source: hdmi1
+    - alias: 'TV is on another input: switch to the PC'
+      conditions:
+      - condition: template
+        value_template: '{{ state_attr(''media_player.55_the_serif_3'', ''source'')
+          != ''hdmi1'' }}'
+      sequence:
+      - action: media_player.select_source
+        target:
+          entity_id: media_player.55_the_serif_3
+        data:
+          source: hdmi1
+  mode: single
+  max_exceeded: silent
+- id: '1792100000001'
+  alias: Light automations · pause / resume
+  description: 'input_boolean.light_automations: on = motion and light automations
+    run as normal; off = paused for guests: motion lights, timed light on/off, the
+    morning routine + briefing and the work alarms are switched off, so lights are
+    manual (wall switches still drive their companions, packages/clipsal_switches.yaml)
+    and lit lights still change scene by time (packages/paused_lights_schedule.yaml).
+    Stays paused until toggled back (no timeout since 2026-11-03). Toggled from the
+    Astrion remote''s Main page. Re-applied on HA start, automation reload and after
+    Auto-stay changes (its controller turns the same automations back on).'
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.light_automations
+    to:
+    - 'on'
+    - 'off'
+  - trigger: homeassistant
+    event: start
+  - trigger: event
+    event_type: automation_reloaded
+  - trigger: state
+    entity_id: input_boolean.auto_stay
+  conditions: []
+  actions:
+  - delay:
+      seconds: 3
+  - variables:
+      autos:
+      - automation.rmm_kitchen_presence_light
+      - automation.rmm_office_presence_light
+      - automation.rmm_wardrobe_presence_light
+      - automation.rmm_bedroom_presence_light
+      - automation.rmm_bathroom_light_with_shower_hold
+      - automation.rmm_night_path_to_bathroom
+      - automation.rmm_couch_light
+      - automation.rmm_console_candles
+      - automation.rmm_ambient_day_lights
+      - automation.rmm_zone_empty_sweep
+      - automation.rmm_fell_asleep_all_lights_off
+      - automation.rmm_weekday_scene_schedule
+      - automation.art_on_door_open
+      - automation.rmm_weekday_morning_routine
+      - automation.rmm_morning_calendar_briefing
+      - automation.work_alarm_go_off
+      - automation.work_alarm_lights
+  - if:
+    - condition: state
+      entity_id: input_boolean.light_automations
+      state: 'off'
+    then:
+    - action: automation.turn_off
+      target:
+        entity_id: '{{ autos }}'
+      data:
+        stop_actions: true
+    - alias: Silence a work alarm that's ringing right now
+      if:
+      - condition: state
+        entity_id: input_boolean.work_alarm_ringing
+        state: 'on'
+      then:
+      - action: script.work_alarm_stop
+    else:
+    - action: automation.turn_on
+      target:
+        entity_id: '{{ autos }}'
+  mode: restart
+- id: '1792556055199'
+  alias: Nest – save motion clips
+  description: ''
+  triggers:
+  - trigger: event
+    event_type: nest_event
+    event_data:
+      type: camera_motion
+  - trigger: event
+    event_type: nest_event
+    event_data:
+      type: camera_person
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.event.data.attachment is defined }}'
+  actions:
+  - delay: 00:00:05
+  - variables:
+      att: '{{ trigger.event.data.attachment }}'
+      is_video: '{{ att.video is defined }}'
+  - action: shell_command.nest_save_clip
+    data:
+      url: '{{ att.video if is_video else att.image }}'
+      filename: '{{ now().strftime(''%Y-%m-%d'') }}/{{ now().strftime(''%H%M%S'')
+        }}_{{ trigger.event.data.type }}_{{ trigger.event.data.device_id[:6] }}.{{
+        ''mp4'' if is_video else ''jpg'' }}'
+  mode: queued
+- id: mirror_ball_kitchen_art
+  alias: 'Mirror ball: kitchen art on with it'
+  description: 'While the mirror ball (fan.mirror_ball) is spinning, the kitchen art
+    light is locked on: it comes on with the ball, and if anything (automation, scene,
+    all-off, dashboard, voice, wall switch) turns it off while the ball is on, it''s
+    switched straight back on. Retries for ~10 s if the light doesn''t respond. Kitchen
+    art can still be on by itself with the ball off; turning the ball off leaves the
+    art light alone. Not gated by auto-stay on purpose. Changed by Claude 2026-10-25.'
+  triggers:
+  - trigger: state
+    entity_id: fan.mirror_ball
+    to: 'on'
+    id: ball_on
+  - trigger: state
+    entity_id: light.kitchen_art
+    to: 'off'
+    id: art_off
+  - trigger: homeassistant
+    event: start
+    id: ha_start
+  conditions:
+  - condition: state
+    entity_id: fan.mirror_ball
+    state: 'on'
+  actions:
+  - repeat:
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.kitchen_art
+      - wait_template: '{{ is_state(''light.kitchen_art'',''on'') }}'
+        timeout: 00:00:03
+        continue_on_timeout: true
+      until:
+      - condition: or
+        conditions:
+        - condition: state
+          entity_id: light.kitchen_art
+          state: 'on'
+        - condition: state
+          entity_id: fan.mirror_ball
+          state: 'off'
+        - condition: template
+          value_template: '{{ repeat.index >= 4 }}'
+  mode: restart
+- id: comelit_doorbell_ring
+  alias: Intercom doorbell ring
+  description: 'Building entrance rang: push the entrance snapshot with an Open button.'
+  triggers:
+  - trigger: state
+    entity_id: event.comelit_intercom_doorbell_2
+    not_from:
+    - unavailable
+    - unknown
+    not_to:
+    - unavailable
+    - unknown
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.to_state.attributes.event_type == ''ring'' }}'
+  actions:
+  - wait_template: '{% set s = state_attr(''camera.comelit_intercom_entrance'', ''snapshot_at'')
+      %}{{ s is not none and as_datetime(s) >= as_datetime(trigger.to_state.state)
+      }}'
+    timeout: 00:00:06
+    continue_on_timeout: true
+  - alias: Not while guests are staying (Bae away)
+    if:
+    - condition: state
+      entity_id: input_boolean.guests_staying
+      state: 'off'
+    then:
+    - parallel:
+      - action: notify.mobile_app_pixel_6a
+        data:
+          title: Someone's at the door
+          message: The building entrance is ringing.
+          data:
+            image: /api/camera_proxy/camera.comelit_intercom_entrance
+            tag: comelit-doorbell
+            ttl: 0
+            priority: high
+            actions:
+            - action: COMELIT_OPEN_MAIN
+              title: Open main door
+      - action: notify.mobile_app_motorola_razr_50
+        data:
+          title: Someone's at the door
+          message: The building entrance is ringing.
+          data:
+            image: /api/camera_proxy/camera.comelit_intercom_entrance
+            tag: comelit-doorbell
+            ttl: 0
+            priority: high
+            actions:
+            - action: COMELIT_OPEN_MAIN
+              title: Open main door
+  mode: single
+  max_exceeded: silent
+- id: comelit_open_main_door
+  alias: Intercom let in from notification
+  description: 'Open button on the doorbell notification: unlocks the main door then
+    the elevator. Refuses if the ring was more than 3 minutes ago.'
+  triggers:
+  - trigger: event
+    event_type: mobile_app_notification_action
+    event_data:
+      action: COMELIT_OPEN_MAIN
+  actions:
+  - if:
+    - condition: template
+      value_template: '{% set t = state_attr(''automation.intercom_doorbell_ring'',
+        ''last_triggered'') %}{{ t is not none and (now() - t).total_seconds() < 180
+        }}'
+    then:
+    - action: button.press
+      target:
+        entity_id: button.comelit_intercom_main_door
+    - delay: 00:00:01
+    - action: button.press
+      target:
+        entity_id: button.comelit_intercom_elevator
+    - parallel:
+      - action: notify.mobile_app_pixel_6a
+        data:
+          title: Let in
+          message: Main door and elevator unlocked.
+          data:
+            tag: comelit-doorbell
+      - action: notify.mobile_app_motorola_razr_50
+        data:
+          title: Let in
+          message: Main door and elevator unlocked.
+          data:
+            tag: comelit-doorbell
+    else:
+    - parallel:
+      - action: notify.mobile_app_pixel_6a
+        data:
+          title: Door not opened
+          message: That ring was more than 3 minutes ago.
+          data:
+            tag: comelit-doorbell
+      - action: notify.mobile_app_motorola_razr_50
+        data:
+          title: Door not opened
+          message: That ring was more than 3 minutes ago.
+          data:
+            tag: comelit-doorbell
+  mode: single
+  max_exceeded: silent
+- id: comelit_missed_ring_log
+  alias: Intercom missed ring log
+  description: Saves a picture of every entrance ring. If nobody lets them in from
+    HA within 3 minutes, counts it as missed.
+  triggers:
+  - trigger: state
+    entity_id: event.comelit_intercom_doorbell_2
+    not_from:
+    - unavailable
+    - unknown
+    not_to:
+    - unavailable
+    - unknown
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.to_state.attributes.event_type == ''ring'' }}'
+  actions:
+  - variables:
+      stamp: '{{ as_datetime(trigger.to_state.state) | as_local }}'
+      file: /media/comelit_vip/rings/{{ (as_datetime(trigger.to_state.state) | as_local).strftime('%Y-%m-%d_%H%M%S')
+        }}.jpg
+  - wait_template: '{% set s = state_attr(''camera.comelit_intercom_entrance'', ''snapshot_at'')
+      %}{{ s is not none and as_datetime(s) >= as_datetime(trigger.to_state.state)
+      }}'
+    timeout: 00:00:06
+    continue_on_timeout: true
+  - action: camera.snapshot
+    target:
+      entity_id: camera.comelit_intercom_entrance
+    data:
+      filename: '{{ file }}'
+    continue_on_error: true
+  - wait_for_trigger:
+    - trigger: state
+      entity_id: button.comelit_intercom_main_door
+    timeout: 00:03:00
+    continue_on_timeout: true
+  - if:
+    - condition: template
+      value_template: '{{ wait.trigger is none }}'
+    then:
+    - action: counter.increment
+      target:
+        entity_id: counter.intercom_missed_rings
+    - action: logbook.log
+      data:
+        name: Intercom
+        entity_id: event.comelit_intercom_doorbell_2
+        message: missed ring at the building entrance ({{ file.split('/')[-1] }})
+    else:
+    - action: logbook.log
+      data:
+        name: Intercom
+        entity_id: event.comelit_intercom_doorbell_2
+        message: ring answered from HA ({{ file.split('/')[-1] }})
+  mode: queued
+  max: 5

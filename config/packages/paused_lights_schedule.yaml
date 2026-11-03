@@ -1,0 +1,157 @@
+# Light scenes by time of day while Bae is away and the motion lights are on.
+# Added by Claude 2026-11-03. With Motion off (input_boolean.light_automations off) nothing
+# changes by itself, the clock included; at home, "RMM: Weekday scene schedule" does this job.
+#
+# Only lights that are already ON change colour/level. Nothing is switched on or off.
+# If none of a step's lights are on, that step does nothing.
+#   07:00  Day      Santorini on the Hue lights
+#   18:00  Evening  Disturbia 2 on the Hue lights; couch pastel + art pendants 75%
+#                   (the rest of the Club/Gay scene is on/off lights, left alone)
+#   21:00  Night    the long-blue Night scene (scene.night) on whichever of its lights are on
+# Every day. Skipped while auto-stay (party mode) is on.
+
+script:
+  hue_scene_lit_only:
+    alias: Hue scene · only on Hue lights that are already on
+    description: >-
+      Recalls a Hue scene on the Home room, then switches straight back off the Hue
+      lights that were off before. The recall fades in over 8 s, so those lights get
+      switched off again at a few percent and barely glow (Hue can't recall a scene on
+      part of a room).
+    mode: queued
+    fields:
+      scene:
+        description: Hue scene entity, e.g. scene.home_home_santorini
+        required: true
+        selector:
+          entity:
+            domain: scene
+    sequence:
+      - variables:
+          home:
+            - light.hue_play_1
+            - light.hue_play_2
+            - light.hue_play_3
+            - light.hue_lightstrip_1
+            - light.home_hue_omniglow_striplight_1
+            - light.home_hue_flux_strip_light_1
+          was_off: "{{ home | reject('is_state', 'on') | list }}"
+      - condition: template
+        value_template: "{{ was_off | count < home | count }}"
+      - action: hue.activate_scene
+        target:
+          entity_id: "{{ scene }}"
+        data:
+          dynamic: true
+          transition: 8
+      - if: "{{ was_off | count > 0 }}"
+        then:
+          - delay:
+              milliseconds: 400
+          - action: light.turn_off
+            target:
+              entity_id: "{{ was_off }}"
+            data:
+              transition: 0
+            continue_on_error: true
+
+automation:
+  - id: paused_lights_schedule
+    alias: Away · scenes by time on lit lights
+    description: See packages/paused_lights_schedule.yaml.
+    mode: queued
+    max: 3
+    triggers:
+      - trigger: time
+        at: "07:00:00"
+        id: day
+      - trigger: time
+        at: "18:00:00"
+        id: evening
+      - trigger: time
+        at: "21:00:00"
+        id: night
+    conditions:
+      - alias: Bae is away (at home, "RMM - Weekday scene schedule" does this job)
+        condition: state
+        entity_id: binary_sensor.bae_home
+        state: "off"
+      - alias: Motion lights on. Motion off means nothing changes by itself, the clock included (Bae, 2026-11-03)
+        condition: state
+        entity_id: input_boolean.light_automations
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.auto_stay
+        state: "off"
+    actions:
+      - choose:
+          - conditions:
+              - condition: trigger
+                id: day
+            sequence:
+              - action: script.hue_scene_lit_only
+                data:
+                  scene: scene.home_home_santorini
+
+          - conditions:
+              - condition: trigger
+                id: evening
+            sequence:
+              - action: script.hue_scene_lit_only
+                data:
+                  scene: scene.home_home_disturbia_2
+              - if:
+                  - condition: state
+                    entity_id: light.couch
+                    state: "on"
+                then:
+                  - action: light.turn_on
+                    target:
+                      entity_id: light.couch
+                    data:
+                      effect: Pastel colors
+                    continue_on_error: true
+              - if:
+                  - condition: state
+                    entity_id: light.club_art_pendants
+                    state: "on"
+                then:
+                  - action: light.turn_on
+                    target:
+                      entity_id: light.art_group
+                    data:
+                      brightness_pct: 75
+                    continue_on_error: true
+
+          - conditions:
+              - condition: trigger
+                id: night
+            sequence:
+              - alias: scene.night's "on" lights and settings (copied 2026-11-03; its "off" lights are left alone)
+                repeat:
+                  for_each:
+                    - lights: [light.couch]
+                      data: { hs_color: [126.142, 97.638], brightness: 18 }
+                    - lights:
+                        - light.hue_play_1
+                        - light.hue_play_2
+                        - light.hue_play_3
+                        - light.club_accent_chair_lights
+                        - light.couchh
+                      data: { xy_color: [0.3595, 0.2743], brightness: 15 }
+                    - lights:
+                        - light.home_hue_omniglow_striplight_1
+                        - light.home_hue_flux_strip_light_1
+                      data: { xy_color: [0.1616, 0.3754], brightness: 3 }
+                    - lights: [light.club_art_pendants]
+                      data: { brightness: 41 }
+                  sequence:
+                    - variables:
+                        on_now: "{{ repeat.item.lights | select('is_state', 'on') | list }}"
+                    - if: "{{ on_now | count > 0 }}"
+                      then:
+                        - action: light.turn_on
+                          target:
+                            entity_id: "{{ on_now }}"
+                          data: "{{ repeat.item.data }}"
+                          continue_on_error: true

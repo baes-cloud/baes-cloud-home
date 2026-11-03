@@ -1,0 +1,70 @@
+# Club TV audio also plays in the Living Room (lounge) Sonos.
+# - When the Club Beam switches to TV audio, the Living Room joins the Club group.
+# - While the Living Room is in the Club group (however it got there), its volume
+#   follows the Club's: set on join, and again every time the Club's volume changes.
+#   One-way: changing the Living Room's own volume does not move the Club.
+# - It stays joined when the TV goes off; ungroup from the app/remote as usual.
+# Built by Claude 2026-11-01 at Bae's request.
+automation:
+  - id: club_tv_living_room_join
+    alias: Club TV · Living Room joins and follows the Club's volume
+    description: >-
+      Club Beam on TV audio -> join the Living Room Sonos to the Club. While the
+      Living Room is grouped with the Club its volume is kept equal to the Club's.
+      Source: /config/packages/club_tv_living_room.yaml.
+    triggers:
+      - trigger: template
+        id: tv
+        value_template: >-
+          {{ is_state_attr('media_player.club', 'source', 'TV')
+             and is_state('media_player.club', 'playing') }}
+      - trigger: homeassistant
+        id: tv
+        event: start
+      - trigger: state
+        id: volume
+        entity_id: media_player.club
+        attribute: volume_level
+      - trigger: state
+        id: volume
+        entity_id: media_player.unnamed_room_5
+        attribute: group_members
+    conditions:
+      - condition: template
+        value_template: "{{ states('media_player.unnamed_room_5') not in ['unavailable', 'unknown'] }}"
+    actions:
+      - if:
+          - alias: TV trigger, or a manual run
+            condition: template
+            value_template: "{{ trigger.id | default('tv') == 'tv' }}"
+          - condition: template
+            value_template: >-
+              {{ is_state_attr('media_player.club', 'source', 'TV')
+                 and is_state('media_player.club', 'playing')
+                 and 'media_player.unnamed_room_5' not in (state_attr('media_player.club', 'group_members') or []) }}
+        then:
+          - action: media_player.join
+            target:
+              entity_id: media_player.club
+            data:
+              group_members:
+                - media_player.unnamed_room_5
+          - wait_template: "{{ 'media_player.unnamed_room_5' in (state_attr('media_player.club', 'group_members') or []) }}"
+            timeout:
+              seconds: 15
+            continue_on_timeout: false
+      - variables:
+          club_volume: "{{ state_attr('media_player.club', 'volume_level') }}"
+      - condition: template
+        value_template: >-
+          {{ club_volume is number
+             and 'media_player.unnamed_room_5' in (state_attr('media_player.club', 'group_members') or [])
+             and ((state_attr('media_player.unnamed_room_5', 'volume_level') or -1) - club_volume) | abs > 0.005 }}
+      - action: media_player.volume_set
+        target:
+          entity_id: media_player.unnamed_room_5
+        data:
+          volume_level: "{{ club_volume }}"
+    mode: queued
+    max: 10
+    max_exceeded: silent
