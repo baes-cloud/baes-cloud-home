@@ -901,6 +901,42 @@ when it sees a physically impossible target, retries once, and only then asks me
 </details>
 
 
+## Wall switches, a pause button and quieter nights
+
+Not everyone who stays here wants a flat that thinks for them, so the smart bits now step aside cleanly.
+
+**The wall switches bring their lamps along.** Three Clipsal (Wiser) switches also drive the smart lamps
+around them: the bathroom ceiling switch takes the WiZ mirror light, the kitchen switch takes the
+under-cupboard strip and the floor light, and the art-pendant dimmer in the Club takes six lamps (TV art,
+kitchen art, bar, console candles, a cupboard light). One rule covers all three: if anything in the group is
+on, a press turns the whole group off; if it's all off, a press turns it all on. The pendants dim but the
+lamps don't, so dimming only moves the pendants, until you dim right down below 10%: then the lamps switch
+off and the pendants glow on their own, and turning it back up brings back the ones that were on.
+
+The tricky part is telling a finger on the switch from Home Assistant switching the same light. A physical
+press reaches HA as a Zigbee report with a fresh context: no user, no parent, and not the context of any
+automation or script run. Time-triggered automations also have no parent, so the check compares the
+light's context against every automation's and script's current context, which is where HA records the
+run that caused a change. Motion lights, scenes and the apps therefore never drag the lamps along.
+See [`clipsal_switches.yaml`](../config/packages/clipsal_switches.yaml).
+
+**One pause button.** "Motion lights" on the remote and on both Nest Hubs flips
+`input_boolean.light_automations`. Off now means off until someone turns it back on (it used to time out
+after 12 hours), and it also stands down the morning routine, the bathroom briefing and the work alarms, and
+silences an alarm that's ringing.
+
+**Time-of-day scenes that never switch anything on.** While paused, or while I'm away, the 7 am, 6 pm and
+9 pm looks (Santorini, Disturbia 2, then the Night scene) only recolour lights that are already on.
+Hue can't recall a scene on part of a room, so the script recalls it with an 8-second fade and immediately
+switches back off the Hue lights that were off; they barely glow. See
+[`paused_lights_schedule.yaml`](../config/packages/paused_lights_schedule.yaml).
+
+**A night path that leaves the sofa alone.** The path to the bathroom used to start on kitchen motion and
+light the kitchen, which is no good with someone asleep on the sofa. It now starts on the bathroom PIR, or
+on the office radar zone and office/wardrobe PIRs only if the kitchen radar saw someone arrive in the last
+two minutes. A ghost parked in the kitchen has an old `last_changed`, so it can't pass. Only the wardrobe
+strip and the bathroom mirror come on.
+
 ## "Am I home?": GPS and Bluetooth must agree
 
 The house only treats me as *away* when the phone's GPS says I've left **and** the

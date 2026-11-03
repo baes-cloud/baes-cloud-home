@@ -10,6 +10,11 @@ esphome:
   name_add_mac_suffix: false
   friendly_name: ${friendly_name}
 
+# OTA password (the upstream package ships passwordless OTA) 2026-10-08
+ota:
+  - id: !extend ota_esphome
+    password: !secret ota_password
+
 api:
   encryption:
     key: !secret api_encryption_key

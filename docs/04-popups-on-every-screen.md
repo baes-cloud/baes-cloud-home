@@ -346,6 +346,15 @@ guide closes.
 
 (Calendar text in these screenshots is swapped for a placeholder.)
 
+### Plain scenes and a Motion button on the Hubs
+
+My own Hue scenes are colourful, which isn't for everyone, so the Hubs now carry a row of everyday scenes
+across the top: All off, Bright, Morning, Lamps, Movie, Party, Xmas and Night, plus a **Motion on/off** pill
+that turns Baby Doll pink while the motion lights are paused. Each scene is an ordinary script
+([`guest_scenes.yaml`](../config/packages/guest_scenes.yaml)), so the remotes and voice can use them too. The
+page server only runs scripts listed in its own config, so a Hub can't be talked into anything else. When an
+alert needs the room, the pills drop their words and become icons.
+
 ## One notification script, fire-and-forget
 Every phone notification goes through one script. Automations start it with
 `script.turn_on` instead of calling it and waiting, so **a failed notification can never stop

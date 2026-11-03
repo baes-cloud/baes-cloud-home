@@ -1,0 +1,114 @@
+# Guest mode while Bae is away: guests are minding the place, so it is never "empty".
+# Added by Claude 2026-11-03.
+#
+# input_boolean.guests_staying ("Guest mode (Bae away)"):
+#   - comes on by itself at input_datetime.guests_from
+#   - goes off once Bae is home for 10 min on or after the input_datetime.guests_until date
+#   - can be flipped by hand any time (dashboard, app)
+#
+# While it's on:
+#   - away mode never arms (so no lights/TV/aircon off, no Roborock away clean, no presence
+#     simulation, no intruder alert); if away mode is already on, it's switched off
+#   - intruder alert and attic camera alert are off
+#   - Bae's phone gets no washer, doorbell or routine front-door pushes (lock/unlock, locked
+#     because you left, unlocked while away, backstop relock). Locking itself carries on.
+#     Still sent: door sensors disagree, bolt failed to re-lock, leak, system alerts.
+# Alarms, morning routine and timed lights already stand down whenever Bae is away.
+
+input_boolean:
+  guests_staying:
+    name: Guest mode (Bae away)
+    icon: mdi:account-key
+
+input_datetime:
+  guests_from:
+    name: Guest mode from
+    has_date: true
+    has_time: true
+  guests_until:
+    name: Guest mode until (off when Bae is home on/after this date)
+    has_date: true
+    has_time: true
+
+automation:
+  - id: guests_staying_schedule
+    alias: Guest mode (Bae away) · on and off by date
+    description: See packages/guests_staying.yaml.
+    mode: queued
+    triggers:
+      - trigger: time
+        at: input_datetime.guests_from
+        id: start
+      - trigger: state
+        entity_id: binary_sensor.bae_home
+        to: "on"
+        for: "00:10:00"
+        id: home
+      - trigger: time
+        at: input_datetime.guests_until
+        id: home
+      - trigger: homeassistant
+        event: start
+        id: restart
+    actions:
+      - variables:
+          # input_datetime state is local wall time; its timestamp attribute is the safe comparison
+          started: "{{ now().timestamp() >= state_attr('input_datetime.guests_from', 'timestamp') | float(0) }}"
+          past_end: "{{ now().strftime('%Y-%m-%d') >= states('input_datetime.guests_until')[:10] }}"
+          in_window: "{{ started and not past_end }}"
+      - choose:
+          - alias: Start of the stay
+            conditions:
+              - condition: trigger
+                id: start
+            sequence:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.guests_staying
+          - alias: Bae's back (on or after the end date)
+            conditions:
+              - condition: trigger
+                id: home
+              - "{{ past_end }}"
+              - condition: state
+                entity_id: binary_sensor.bae_home
+                state: "on"
+              - condition: state
+                entity_id: input_boolean.guests_staying
+                state: "on"
+            sequence:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: input_boolean.guests_staying
+          - alias: HA restarted mid-stay (missed the start time)
+            conditions:
+              - condition: trigger
+                id: restart
+              - "{{ in_window }}"
+            sequence:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.guests_staying
+
+  - id: guests_staying_on
+    alias: Guest mode (Bae away) · stand down away mode
+    description: Guest mode coming on switches away mode off (docks a running away clean, ends presence simulation).
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: input_boolean.guests_staying
+        to: "on"
+      - trigger: state
+        entity_id: input_boolean.away_mode
+        to: "on"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.guests_staying
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.away_mode
+        state: "on"
+    actions:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.away_mode
