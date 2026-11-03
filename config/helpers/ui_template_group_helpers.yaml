@@ -26,7 +26,7 @@ light_groups:
   - light.hue_play_3
   - light.hue_play_1
   - light.club_accent_chair_lights
-  - light.lasco_wifi_fairy_lights_2
+  - light.couchh
 - name: Club Accent Lights
   type: light
   entities:
@@ -54,7 +54,6 @@ light_groups:
   entities:
   - light.bed_lamp_left
   - light.bed_lamp_right
-  - light.bedroom_led_strip
 - name: bathlightsall
   type: light
   entities:
@@ -82,7 +81,6 @@ light_groups:
   type: light
   entities:
   - light.club_art_pendants
-  - light.tv_art_lights
 - name: Hue lights
   type: light
   entities:
@@ -96,9 +94,8 @@ light_groups:
   type: light
   entities:
   - light.kitchen
-  - light.kitchen_art
   - light.kitchen_kitchen_floor
-  - light.kitchen_console_candles
+  - light.kitchen_led
 - name: TV Art lights
   type: light
   entities:
@@ -120,5 +117,5 @@ switch_as_x:
   source: switch.bedroom_led_strip
   as: light
 - name: Bedroom Heater
-  source: switch.bedroom_heater
-  as: fan
+  source: switch.bedroom_led
+  as: light

@@ -361,6 +361,19 @@
       friendly_name: Downlights
       supported_features: 40
       state: 'off'
+    light.kitchen_art:
+      supported_color_modes:
+      - onoff
+      color_mode: onoff
+      friendly_name: Kitchen art
+      supported_features: 8
+      state: 'on'
+    light.bedroom_cupboard_light_ueb:
+      supported_color_modes:
+      - onoff
+      color_mode: onoff
+      friendly_name: Wardrobe USB light 1
+      state: 'on'
   metadata:
     light.bar_lights:
       entity_only: true
@@ -373,6 +386,10 @@
     light.couch:
       entity_only: true
     light.downlights:
+      entity_only: true
+    light.kitchen_art:
+      entity_only: true
+    light.bedroom_cupboard_light_ueb:
       entity_only: true
 - id: '1779479530222'
   name: White
@@ -533,6 +550,12 @@
       friendly_name: Art Lights
       supported_features: 40
       state: 'on'
+    light.bedroom_cupboard_light_ueb:
+      supported_color_modes:
+      - onoff
+      color_mode: onoff
+      friendly_name: Wardrobe USB light 1
+      state: 'on'
   metadata:
     light.bar_lights:
       entity_only: true
@@ -550,6 +573,8 @@
       entity_only: true
     light.art_group:
       entity_only: true
+    light.bedroom_cupboard_light_ueb:
+      entity_only: true
 - id: bed_morning_20261005
   name: Bed morning
   icon: mdi:weather-sunset-up
@@ -563,7 +588,7 @@
     light.bed_lamp_right:
       state: 'on'
       brightness: 102
-    light.bedroom_led_strip:
+    light.bedroom_led:
       state: 'on'
     light.bedroom_candles:
       state: 'off'
@@ -580,7 +605,7 @@
       state: 'off'
     light.bed_lamp_right:
       state: 'off'
-    light.bedroom_led_strip:
+    light.bedroom_led:
       state: 'off'
     light.bedroom_candles:
       state: 'off'
@@ -598,7 +623,7 @@
     light.bed_lamp_right:
       state: 'on'
       brightness: 64
-    light.bedroom_led_strip:
+    light.bedroom_led:
       state: 'on'
     light.bedroom_candles:
       state: 'on'
@@ -616,7 +641,7 @@
     light.bed_lamp_right:
       state: 'on'
       brightness: 13
-    light.bedroom_led_strip:
+    light.bedroom_led:
       state: 'off'
     light.bedroom_candles:
       state: 'off'

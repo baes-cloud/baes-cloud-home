@@ -1,0 +1,50 @@
+# Music Assistant memory guard (2026-11-01).
+# MA 2.10.8 leaks ~120 MB/h. On 2026-10-31 it reached 6.2 GB of the Pi5's 8 GB,
+# the box swap-thrashed, HA stalled and the failover flapped for 25 min.
+# 1) Restart MA every night while nothing is playing (caps it at ~3 GB).
+# 2) Restart it straight away if host memory goes above 80% (normal is ~30%).
+automation:
+  - id: ma_memory_guard_nightly
+    alias: Music Assistant - nightly restart
+    description: Restarts the MA app at 04:40 while nothing plays, to clear its memory leak.
+    mode: single
+    triggers:
+      - trigger: time
+        at: "04:40:00"
+    conditions:
+      - condition: template
+        value_template: >
+          {{ integration_entities('music_assistant')
+             | select('match', 'media_player\.')
+             | select('is_state', 'playing') | list | count == 0 }}
+    actions:
+      - action: hassio.app_restart
+        data:
+          app: d5369777_music_assistant
+
+  - id: ma_memory_guard_emergency
+    alias: Music Assistant - emergency restart on low memory
+    description: Host memory above 80% for 3 min means MA has leaked again; restart it before the Pi5 starts swapping.
+    mode: single
+    max_exceeded: silent
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.system_monitor_memory_usage
+        above: 80
+        for: "00:03:00"
+    actions:
+      - action: hassio.app_restart
+        data:
+          app: d5369777_music_assistant
+      - action: script.turn_on
+        target:
+          entity_id: script.notify_bae
+        data:
+          variables:
+            title: Music Assistant restarted
+            message: >
+              Pi5 memory hit {{ trigger.to_state.state }}%, so Music Assistant was
+              restarted to stop it starving Home Assistant.
+            data:
+              tag: ma_memory_guard
+      - delay: "00:30:00"

@@ -315,6 +315,12 @@ globals:
   - id: tv_pic
     type: std::string
     initial_value: '""'
+  - id: art_retry_key
+    type: std::string
+    initial_value: '""'
+  - id: art_retries
+    type: int
+    initial_value: '0'
   - id: tx0
     type: int
     initial_value: '0'
@@ -955,6 +961,7 @@ script:
             lambda: |-
               if (!id(media_is_tv) || id(tv_pic).empty()) return false;
               const std::string &x = id(tv_pic);
+              if (x[0] == '/' && x.rfind("/api/", 0) != 0) return false;  // Plex-relative path, not on HA
               size_t p = x.find("cache=");
               std::string k = "tv:" + (p == std::string::npos ? x : x.substr(p));
               if (k == id(art_key)) return false;
@@ -1139,7 +1146,13 @@ interval:
   - interval: 30s
     then:
       - if:
-          condition: {lambda: 'return !id(art_ok) && !id(art_key).empty();'}
+          # at most 3 retries per image: a network blip recovers, a progressive
+          # JPEG (unsupported by the decoder) never will
+          condition:
+            lambda: |-
+              if (id(art_ok) || id(art_key).empty()) return false;
+              if (id(art_retry_key) != id(art_key)) { id(art_retry_key) = id(art_key); id(art_retries) = 0; }
+              return id(art_retries)++ < 3;
           then: [{component.update: album_blur}]
 time:
   - platform: homeassistant

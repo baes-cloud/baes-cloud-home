@@ -719,6 +719,17 @@ sl68_smart_clean_once:
 </details>
 
 
+### When someone's minding the flat
+
+If friends stay while I'm away, the flat is never really empty, so "away" would do all the wrong things:
+lights, TV and aircon off, the robots out, an intruder alert the moment someone walks in. A guest mode
+(`input_boolean.guests_staying`) starts on a set date and ends once I'm home again on or after the end date.
+While it's on, away mode never arms (and is switched off if it already was), the intruder and attic camera
+alerts stand down, and my phone stops getting the washer, doorbell and routine door pushes. The door still
+locks itself, and the faults I'd want to hear about anyway (door sensors disagreeing, the bolt failing to
+re-lock, a leak) still come through. Guests get their own keypad code, and the Nest Hubs gained plain light
+scenes for them. See [`guests_staying.yaml`](../config/packages/guests_staying.yaml).
+
 ## Coming home
 I let myself in with a fingerprint on the keypad. There are extra backup systems in place behind it,
 and the automations below make sure the door always ends up locked again.
