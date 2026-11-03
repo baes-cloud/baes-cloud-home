@@ -1,7 +1,6 @@
-# Light scenes by time of day while the light automations are paused
-# (input_boolean.light_automations off: the remote's pause button, e.g. guests staying)
-# or while Bae is away (binary_sensor.bae_home off; the normal schedule needs Bae home).
-# Added by Claude 2026-11-03.
+# Light scenes by time of day while Bae is away and the motion lights are on.
+# Added by Claude 2026-11-03. With Motion off (input_boolean.light_automations off) nothing
+# changes by itself, the clock included; at home, "RMM: Weekday scene schedule" does this job.
 #
 # Only lights that are already ON change colour/level. Nothing is switched on or off.
 # If none of a step's lights are on, that step does nothing.
@@ -10,10 +9,6 @@
 #                   (the rest of the Club/Gay scene is on/off lights, left alone)
 #   21:00  Night    the long-blue Night scene (scene.night) on whichever of its lights are on
 # Every day. Skipped while auto-stay (party mode) is on.
-#
-# With the automations running normally, "RMM: Weekday scene schedule" does this job
-# instead (Mon-Fri 18:00 Club + Disturbia 2, Sun-Thu 21:00 long blue) and is allowed
-# to switch lights on.
 
 script:
   hue_scene_lit_only:
@@ -62,7 +57,7 @@ script:
 
 automation:
   - id: paused_lights_schedule
-    alias: Light automations paused · scenes by time on lit lights
+    alias: Away · scenes by time on lit lights
     description: See packages/paused_lights_schedule.yaml.
     mode: queued
     max: 3
@@ -77,15 +72,14 @@ automation:
         at: "21:00:00"
         id: night
     conditions:
-      - alias: Light automations paused, or Bae is away
-        condition: or
-        conditions:
-          - condition: state
-            entity_id: input_boolean.light_automations
-            state: "off"
-          - condition: state
-            entity_id: binary_sensor.bae_home
-            state: "off"
+      - alias: Bae is away (at home, "RMM - Weekday scene schedule" does this job)
+        condition: state
+        entity_id: binary_sensor.bae_home
+        state: "off"
+      - alias: Motion lights on. Motion off means nothing changes by itself, the clock included (Bae, 2026-11-03)
+        condition: state
+        entity_id: input_boolean.light_automations
+        state: "on"
       - condition: state
         entity_id: input_boolean.auto_stay
         state: "off"
