@@ -922,11 +922,12 @@ See [`clipsal_switches.yaml`](../config/packages/clipsal_switches.yaml).
 
 **One pause button.** "Motion lights" on the remote and on both Nest Hubs flips
 `input_boolean.light_automations`. Off now means off until someone turns it back on (it used to time out
-after 12 hours), and it also stands down the morning routine, the bathroom briefing and the work alarms, and
-silences an alarm that's ringing.
+after 12 hours), and it also stands down the time-of-day scenes, the morning routine, the bathroom briefing
+and the work alarms, and silences an alarm that's ringing.
 
-**Time-of-day scenes that never switch anything on.** While paused, or while I'm away, the 7 am, 6 pm and
-9 pm looks (Santorini, Disturbia 2, then the Night scene) only recolour lights that are already on.
+**Time-of-day scenes that never switch anything on.** While I'm away, the 7 am, 6 pm and 9 pm looks
+(Santorini, Disturbia 2, then the Night scene) only recolour lights that are already on. With the motion
+lights paused, even that stops: nothing changes unless someone presses something.
 Hue can't recall a scene on part of a room, so the script recalls it with an 8-second fade and immediately
 switches back off the Hue lights that were off; they barely glow. See
 [`paused_lights_schedule.yaml`](../config/packages/paused_lights_schedule.yaml).
