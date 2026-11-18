@@ -276,7 +276,7 @@ day:
     metadata: {}
     target:
       entity_id:
-      - light.bedroom_led_strip
+      - light.bedroom_led
       - light.bedlamps
       - light.bedroom_lights
     data: {}
@@ -363,7 +363,6 @@ open_blinds:
     metadata: {}
     target:
       entity_id: cover.blinds
-      device_id: <device-id>
     data: {}
   alias: Open Blinds
   description: ''
@@ -373,7 +372,6 @@ close_blinds:
     metadata: {}
     target:
       entity_id: cover.blinds
-      device_id: <device-id>
     data: {}
   alias: Close Blinds
   description: ''
@@ -463,73 +461,6 @@ long_yellow:
     data: {}
   alias: long yellow
   description: ''
-club_lights_club_strobe:
-  alias: 'Club Lights: Club Strobe'
-  icon: mdi:flash-alert
-  description: 'Beat strobe in Disturbia at full impact. Saves the current look first
-    so Club Lights: Restore can put it back.'
-  sequence:
-  - action: scene.create
-    data:
-      scene_id: club_lights_before_strobe
-      snapshot_entities:
-      - input_select.club_lights_palette
-      - input_select.club_lights_mode
-      - input_number.club_lights_speed
-      - input_number.club_lights_intensity
-      - input_number.club_lights_brightness
-  - action: input_boolean.turn_on
-    target:
-      entity_id: input_boolean.club_lights
-  - action: input_select.select_option
-    target:
-      entity_id: input_select.club_lights_palette
-    data:
-      option: Disturbia
-  - action: input_select.select_option
-    target:
-      entity_id: input_select.club_lights_mode
-    data:
-      option: Club Strobe
-  - action: input_number.set_value
-    target:
-      entity_id: input_number.club_lights_speed
-    data:
-      value: 200
-  - action: input_number.set_value
-    target:
-      entity_id: input_number.club_lights_intensity
-    data:
-      value: 150
-  - action: input_number.set_value
-    target:
-      entity_id: input_number.club_lights_brightness
-    data:
-      value: 100
-  - if:
-    - condition: template
-      value_template: '{{ is_state("media_player.club_2","playing") and "media_player.club_lights"
-        not in (state_attr("media_player.club_2","group_members") or []) }}'
-    then:
-    - action: media_player.join
-      target:
-        entity_id: media_player.club_2
-      data:
-        group_members:
-        - media_player.club_lights
-      continue_on_error: true
-  mode: single
-club_lights_restore:
-  alias: 'Club Lights: Restore'
-  icon: mdi:restore
-  description: Put back the palette/mode/speed/intensity/brightness from before Club
-    Strobe.
-  sequence:
-  - action: scene.turn_on
-    target:
-      entity_id: scene.club_lights_before_strobe
-    continue_on_error: true
-  mode: single
 club_blinds_all:
   alias: Club blind · toggle (hold CURTAIN)
   description: 'Created for the Astrion remotes (hold CURTAIN, and the voice shortcut
@@ -845,3 +776,139 @@ sl68_followup_clean:
           channel: Roborock
           actions: '{{ [{''action'': ''RR_SL68_HOME'', ''title'': ''Send SL68 to dock''}]
             if still_out else [] }}'
+tv_ambient_show:
+  alias: TV ambient screen
+  description: Turns the Serif on (if needed), switches to HDMI1 (baehp) and pins
+    the ambient screen. It stays up until input_boolean.tv_ambient is turned off (Astrion
+    BACK). Source in ~/Documents/claude/tv-pc.
+  icon: mdi:television-ambient-light
+  mode: single
+  sequence:
+  - action: input_boolean.turn_on
+    target:
+      entity_id: input_boolean.tv_ambient
+  - if:
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.55_the_serif_3
+        state: 'on'
+    then:
+    - action: media_player.turn_on
+      target:
+        entity_id: media_player.55_the_serif_3
+    - wait_template: '{{ is_state(''media_player.55_the_serif_3'', ''on'') }}'
+      timeout:
+        seconds: 20
+      continue_on_timeout: true
+    - delay:
+        seconds: 3
+  - action: media_player.select_source
+    target:
+      entity_id: media_player.55_the_serif_3
+    data:
+      source: hdmi1
+tv_remote_guide_show:
+  alias: TV remote guide · show
+  description: Puts the full-screen remote guide on the Serif (baehp HDMI1 kiosk,
+    Bæovision /guide). Remembers what the TV was doing so script.tv_remote_guide_hide
+    can put it back. Called by the Astrion remotes when their guide opens (hold Menu).
+    The Samsung's reported input can go stale (SmartThings), so 'was the Google TV
+    in use' comes from the Streamer's own state.
+  icon: mdi:remote-tv
+  mode: single
+  sequence:
+  - condition: state
+    entity_id: input_boolean.tv_remote_guide
+    state: 'off'
+  - action: input_text.set_value
+    target:
+      entity_id: input_text.tv_remote_guide_return
+    data:
+      value: '{% set streamer = states(''media_player.club_android_tv_10_0_0_248_club_tv'')
+        %}{% if not is_state(''media_player.55_the_serif_3'', ''on'') %}off{% elif
+        streamer in [''playing'', ''paused''] or state_attr(''media_player.55_the_serif_3'',
+        ''source'') == ''hdmi4'' %}streamer{% else %}{{ state_attr(''media_player.55_the_serif_3'',
+        ''source'') or ''streamer'' }}{% endif %}'
+  - action: input_boolean.turn_on
+    target:
+      entity_id: input_boolean.tv_remote_guide
+  - if:
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.55_the_serif_3
+        state: 'on'
+    then:
+    - action: media_player.turn_on
+      target:
+        entity_id: media_player.55_the_serif_3
+    - wait_template: '{{ is_state(''media_player.55_the_serif_3'', ''on'') }}'
+      timeout:
+        seconds: 20
+      continue_on_timeout: true
+    - delay:
+        seconds: 3
+  - action: media_player.select_source
+    target:
+      entity_id: media_player.55_the_serif_3
+    data:
+      source: hdmi1
+tv_remote_guide_hide:
+  alias: TV remote guide · hide
+  description: Takes the remote guide off the Serif and puts the TV back as script.tv_remote_guide_show
+    found it (same input, or off).
+  icon: mdi:remote-tv-off
+  mode: single
+  sequence:
+  - condition: state
+    entity_id: input_boolean.tv_remote_guide
+    state: 'on'
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.tv_remote_guide
+  - variables:
+      back: '{{ states(''input_text.tv_remote_guide_return'') }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ back == ''off'' }}'
+      sequence:
+      - action: media_player.turn_off
+        target:
+          entity_id: media_player.55_the_serif_3
+    - conditions:
+      - condition: template
+        value_template: '{{ back == ''streamer'' }}'
+      sequence:
+      - action: androidtv.adb_command
+        target:
+          entity_id: media_player.club_android_tv_10_0_0_248_club_tv
+        data:
+          command: input keyevent KEYCODE_WAKEUP; sleep 1; cmd hdmi_control onetouchplay
+    - conditions:
+      - condition: template
+        value_template: '{{ back not in ['''', ''unknown'', ''hdmi1''] }}'
+      sequence:
+      - action: media_player.select_source
+        target:
+          entity_id: media_player.55_the_serif_3
+        data:
+          source: '{{ back }}'
+intercom_let_in:
+  alias: Intercom let in
+  description: Releases the elevator, then the main door (order swapped 2026-10-25
+    pending a test; relays may be labelled the wrong way round).
+  icon: mdi:door-open
+  mode: single
+  max_exceeded: silent
+  sequence:
+  - action: button.press
+    target:
+      entity_id: button.comelit_intercom_elevator
+    continue_on_error: true
+  - delay:
+      seconds: 2
+  - action: button.press
+    target:
+      entity_id: button.comelit_intercom_main_door

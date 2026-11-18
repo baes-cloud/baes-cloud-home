@@ -1,0 +1,360 @@
+# Everyday light scenes for guests: plain white/warm looks, not Bae's colourful Hue scenes.
+# Package for /config/packages/guest_scenes.yaml. Added by Claude 2026-11-03.
+# Shown as the scene pills along the top of the Bæocenter Hubs (floorplan.json extras.scenes),
+# and usable from anything else (remotes, voice, dashboard).
+#
+# Each scene sets the Club + kitchen completely (on/off and level), except:
+#   All off  -> every room light in the house
+#   Night    -> everything off except a dim path: kitchen floor, couch glow, bathroom mirror
+#
+# Every light call has continue_on_error, so one offline light never stops a scene.
+
+script:
+  scene_all_off:
+    alias: "Scene · All off"
+    icon: mdi:power
+    mode: restart
+    sequence:
+      - action: light.turn_off
+        target:
+          entity_id:
+            # Club + kitchen
+            - light.downlights
+            - light.club_art_pendants
+            - light.kitchen
+            - light.kitchen_led
+            - light.kitchen_kitchen_floor
+            - light.bar_lights
+            - light.kitchen_console_candles
+            - light.kitchen_art
+            - light.tv_art_lights
+            - light.club_accent_chair_lights
+            - light.bedroom_cupboard_light_ueb
+            - light.lasco_wifi_fairy_lights_2
+            - light.couch
+            - light.couchh
+            - light.hue_play_1
+            - light.hue_play_2
+            - light.hue_play_3
+            - light.hue_lightstrip_1
+            - light.home_hue_omniglow_striplight_1
+            - light.home_hue_flux_strip_light_1
+            # bedroom, office, wardrobe, bathroom
+            - light.bedroom_lights
+            - light.bedlamps
+            - light.bedroom_led
+            - light.office_lights
+            - light.office_all
+            - light.wardrobes
+            - light.bathroom_downlights
+            - light.bathroom_mirror_led
+            - light.bathroom_lights
+            - light.bathroom_lights_2
+        continue_on_error: true
+
+  scene_bright:
+    alias: "Scene · Bright"
+    description: Everything on, cool white, full. Cooking, cleaning, finding things.
+    icon: mdi:white-balance-sunny
+    mode: restart
+    sequence:
+      - action: light.turn_on
+        target:
+          entity_id: [light.downlights, light.club_art_pendants]
+        data: { brightness_pct: 100 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id:
+            - light.kitchen
+            - light.kitchen_led
+            - light.kitchen_kitchen_floor
+            - light.bar_lights
+            - light.kitchen_console_candles
+            - light.kitchen_art
+            - light.tv_art_lights
+            - light.club_accent_chair_lights
+            - light.bedroom_cupboard_light_ueb
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id:
+            - light.hue_play_1
+            - light.hue_play_2
+            - light.hue_play_3
+            - light.hue_lightstrip_1
+            - light.home_hue_omniglow_striplight_1
+            - light.home_hue_flux_strip_light_1
+        data: { color_temp_kelvin: 4000, brightness_pct: 100, transition: 1 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: [light.couch, light.couchh]
+        data: { color_temp_kelvin: 4000, brightness_pct: 100 }
+        continue_on_error: true
+
+  scene_morning:
+    alias: "Scene · Morning"
+    description: Soft neutral white, the ceiling lights half up, kitchen on.
+    icon: mdi:weather-sunset-up
+    mode: restart
+    sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.downlights
+        data: { brightness_pct: 50 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: light.club_art_pendants
+        data: { brightness_pct: 70 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id:
+            - light.kitchen
+            - light.kitchen_led
+            - light.kitchen_console_candles
+            - light.kitchen_art
+        continue_on_error: true
+      - action: light.turn_off
+        target:
+          entity_id:
+            - light.kitchen_kitchen_floor
+            - light.bar_lights
+            - light.tv_art_lights
+            - light.club_accent_chair_lights
+            - light.lasco_wifi_fairy_lights_2
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id:
+            - light.hue_play_1
+            - light.hue_play_2
+            - light.hue_play_3
+            - light.hue_lightstrip_1
+            - light.home_hue_omniglow_striplight_1
+            - light.home_hue_flux_strip_light_1
+        data: { color_temp_kelvin: 3300, brightness_pct: 70, transition: 2 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: [light.couch, light.couchh]
+        data: { color_temp_kelvin: 3300, brightness_pct: 50 }
+        continue_on_error: true
+
+  scene_lamps:
+    alias: "Scene · Lamps"
+    description: Ceiling lights off; lamps, candles and warm low light. A cosy evening.
+    icon: mdi:lamp
+    mode: restart
+    sequence:
+      - action: light.turn_off
+        target:
+          entity_id: [light.downlights, light.kitchen]
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: light.club_art_pendants
+        data: { brightness_pct: 25 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id:
+            - light.kitchen_led
+            - light.kitchen_kitchen_floor
+            - light.bar_lights
+            - light.kitchen_console_candles
+            - light.kitchen_art
+            - light.tv_art_lights
+            - light.club_accent_chair_lights
+            - light.bedroom_cupboard_light_ueb
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id:
+            - light.hue_play_1
+            - light.hue_play_2
+            - light.hue_play_3
+            - light.hue_lightstrip_1
+            - light.home_hue_omniglow_striplight_1
+            - light.home_hue_flux_strip_light_1
+        data: { color_temp_kelvin: 2700, brightness_pct: 45, transition: 2 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: [light.couch, light.couchh]
+        data: { color_temp_kelvin: 2700, brightness_pct: 35 }
+        continue_on_error: true
+
+  scene_movie:
+    alias: "Scene · Movie"
+    description: Lights down for the TV. A dim warm glow behind the TV and under the couch.
+    icon: mdi:television-play
+    mode: restart
+    sequence:
+      - action: light.turn_off
+        target:
+          entity_id:
+            - light.downlights
+            - light.club_art_pendants
+            - light.kitchen
+            - light.kitchen_led
+            - light.bar_lights
+            - light.kitchen_art
+            - light.tv_art_lights
+            - light.club_accent_chair_lights
+            - light.bedroom_cupboard_light_ueb
+            - light.lasco_wifi_fairy_lights_2
+            - light.couchh
+            - light.hue_lightstrip_1
+            - light.home_hue_omniglow_striplight_1
+            - light.home_hue_flux_strip_light_1
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: [light.kitchen_kitchen_floor, light.kitchen_console_candles]
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: [light.hue_play_1, light.hue_play_2, light.hue_play_3]
+        data: { color_temp_kelvin: 2700, brightness_pct: 20, transition: 2 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: light.couch
+        data: { color_temp_kelvin: 2700, brightness_pct: 8 }
+        continue_on_error: true
+
+  scene_party:
+    alias: "Scene · Party"
+    description: Colour-cycling lights, ceiling lights off, bar on.
+    icon: mdi:party-popper
+    mode: restart
+    sequence:
+      - action: light.turn_off
+        target:
+          entity_id: [light.downlights, light.kitchen, light.kitchen_art]
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: light.club_art_pendants
+        data: { brightness_pct: 30 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id:
+            - light.kitchen_led
+            - light.kitchen_kitchen_floor
+            - light.bar_lights
+            - light.kitchen_console_candles
+            - light.tv_art_lights
+            - light.club_accent_chair_lights
+            - light.bedroom_cupboard_light_ueb
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id:
+            - light.hue_play_1
+            - light.hue_play_2
+            - light.hue_play_3
+            - light.hue_lightstrip_1
+            - light.home_hue_omniglow_striplight_1
+            - light.home_hue_flux_strip_light_1
+        data: { brightness_pct: 100, effect: prism }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: light.couch
+        data: { hs_color: [300, 100], brightness_pct: 100 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: light.couchh
+        data: { effect: Party }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: light.lasco_wifi_fairy_lights_2
+        data: { effect: Scene }
+        continue_on_error: true
+
+  scene_xmas:
+    alias: "Scene · Christmas"
+    description: Red and green, warm white strips, the tree twinkling.
+    icon: mdi:pine-tree
+    mode: restart
+    sequence:
+      - action: light.turn_off
+        target:
+          entity_id: [light.downlights, light.kitchen]
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: light.club_art_pendants
+        data: { brightness_pct: 40 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id:
+            - light.kitchen_led
+            - light.kitchen_kitchen_floor
+            - light.bar_lights
+            - light.kitchen_console_candles
+            - light.kitchen_art
+            - light.tv_art_lights
+            - light.club_accent_chair_lights
+            - light.bedroom_cupboard_light_ueb
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: [light.hue_play_1, light.hue_play_3, light.home_hue_omniglow_striplight_1]
+        data: { hs_color: [0, 100], brightness_pct: 80, transition: 2 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: [light.hue_play_2, light.home_hue_flux_strip_light_1]
+        data: { hs_color: [120, 100], brightness_pct: 80, transition: 2 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: light.hue_lightstrip_1
+        data: { color_temp_kelvin: 2200, brightness_pct: 60, transition: 2 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: light.couch
+        data: { hs_color: [0, 100], brightness_pct: 60 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: light.couchh
+        data: { effect: Christmas }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: light.lasco_wifi_fairy_lights_2
+        data: { hs_color: [0, 100] }
+        continue_on_error: true
+
+  scene_night_light:
+    alias: "Scene · Night light"
+    description: Everything off except a dim path to the bathroom.
+    icon: mdi:weather-night
+    mode: restart
+    sequence:
+      - action: script.scene_all_off
+      - action: light.turn_on
+        target:
+          entity_id: light.kitchen_kitchen_floor
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: light.couch
+        data: { color_temp_kelvin: 2200, brightness_pct: 5 }
+        continue_on_error: true
+      - action: light.turn_on
+        target:
+          entity_id: light.bathroom_mirror_led
+        data: { color_temp_kelvin: 2700, brightness_pct: 10 }
+        continue_on_error: true
