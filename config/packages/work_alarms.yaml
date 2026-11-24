@@ -212,8 +212,10 @@ script:
           # Skip any speaker that is offline, so one dead speaker can't silence the alarm.
           speakers: "{{ all_speakers | reject('is_state', ['unavailable', 'unknown']) | list }}"
           gayfm: https://icepool.silvacast.com/GAYFM.mp3
-          favourites: [3, 4, 5, 8, 9, 10, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24, 25, 26,
-                       27, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 41, 43, 45, 46, 47]
+          # Playable favourites only (NAS sets, SoundCloud, Mixcloud). Refreshed 2026-11-18
+          # after the 11-07 swap renumbered them; YouTube Music ones are dead, left out.
+          favourites: [21, 22, 23, 24, 25, 43, 51, 52, 53, 54, 55, 58, 59, 60, 61, 62, 63,
+                       64, 65, 66, 67, 68, 69, 70, 71, 72]
           fav: "FV:2/{{ favourites | random }}"
           stage: "{{ stage if stage is defined and stage in ['first', 'second', 'wfh'] else 'second' }}"
           autostop: "{{ {'first': '00:10:00', 'second': '00:15:00', 'wfh': '00:10:00'}[stage] }}"
@@ -280,11 +282,23 @@ script:
             sequence: []
         default:
           - action: media_player.play_media
+            continue_on_error: true
             target:
               entity_id: media_player.club
             data:
               media_content_id: "{{ fav }}"
               media_content_type: favorite_item_id
+          - alias: Fallback to GayFM if the favourite won't start
+            wait_template: "{{ is_state('media_player.club', 'playing') }}"
+            timeout: "00:00:20"
+          - if: "{{ not wait.completed }}"
+            then:
+              - action: media_player.play_media
+                target:
+                  entity_id: media_player.club
+                data:
+                  media_content_id: "{{ gayfm }}"
+                  media_content_type: music
       - alias: Self-stop if nobody touches it (10 min alarm 1 / WFH, 15 min alarm 2)
         action: timer.start
         target:
@@ -353,7 +367,6 @@ script:
         target:
           entity_id: light.couch
         data:
-          color_temp_kelvin: 5431
           brightness_pct: 100
           transition: 120
         continue_on_error: true
@@ -513,6 +526,10 @@ automation:
       - alias: Alarm 2 only retries if alarm 1's lights didn't work
         condition: state
         entity_id: input_boolean.work_alarm_lights_done
+        state: "off"
+      - alias: Auto-stay (party mode) keeps the lights as they are; the alarm sound still rings
+        condition: state
+        entity_id: input_boolean.auto_stay
         state: "off"
     actions:
       - action: script.work_alarm_lights

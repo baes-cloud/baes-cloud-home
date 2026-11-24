@@ -12,20 +12,14 @@ scene: !include scenes.yaml
 # Feature config lives in packages/ (one file per feature, loaded automatically):
 #   front_door.yaml   lock helpers + combined door-open sensor
 #   presence.yaml     binary_sensor.bae_home (GPS + BLE must agree)
-#   news_digest.yaml  daily news digest pulled from the Unraid nginx container
+#   (news_digest.yaml retired 2026-11-21, kept in packages_disabled/)
 #   work_alarms.yaml  calendar-driven Sonos work alarms + Club night sound
 #   club_tv_living_room.yaml  Living Room joins the Club on TV audio + follows its volume
-#   rotary_lists.yaml lists for the rotary displays
+#   rotary_remote.yaml   group volume + stop-all for the two rotary knobs
 homeassistant:
   packages: !include_dir_named packages
 
-# Zigbee runs on the external Zigbee2MQTT at <mqtt-host>, so there is no zha: block.
-shell_command:
-  nest_save_clip: >-
-    curl -sf --create-dirs -H @/config/.nest_auth
-    -o "/media/nest/{{ filename }}"
-    "http://127.0.0.1:8123{{ url }}"
-  nest_prune_clips: "find /media/nest -type f -mtime +30 -delete"
+# Zigbee runs on the external Zigbee2MQTT on baelap (MQTT broker <proxy-ip>), so there is no zha: block.
 # pysmartthings warns about every unknown Samsung capability at each start; keep its errors only.
 logger:
   default: warning
@@ -39,6 +33,12 @@ logger:
     # works fine over the local <nas-ip> address. Only hide that one case. 2026-10-08
     plexapi:
       - "^https://(?!10-)[0-9a-f-]+\\.[0-9a-f]+\\.plex\\.direct:32400: .*Connection refused"
+    # The Apollo R_PRO-1 sits on the IoT network (no internet), so its built-in
+    # "check GitHub for firmware" fails every ~12 min and HA forwards each failure
+    # (~10 warnings/h). Only those lines are hidden; every other Apollo log still shows.
+    # Reflashing to drop the check would pull Apollo's unpinned GitHub package. 2026-11-07
+    homeassistant.components.esphome.manager:
+      - "Apollo R_PRO-1 f5c680: .*\\[http_request"
 
 # --- Recorder ----------------------------------------------------------------
 # Excluded entities stay fully live (automations, RMM, radar card); only their
@@ -74,6 +74,29 @@ recorder:
       # Club TV Cast entity rewrites itself several times a second while anything plays
       # (playback position): ~137k rows/day. Automations and remotes use its live state only.
       - media_player.the_club_tv
+      # Added 2026-11-07 (HA review): together ~43% of all rows (52k/day of 122k).
+      # baehp idle time counts up every few seconds (TV-off automation reads it live);
+      # Apollo LD2450 moving/still counts tick every few seconds (RMM uses them live,
+      # presence_target_count and the RMM zone counts stay recorded); Pi5 fan rpm.
+      - sensor.baehp_idle
+      - sensor.club_apollo_r_pro_1_ld2450_moving_target_count
+      - sensor.club_apollo_r_pro_1_ld2450_still_target_count
+      - sensor.system_monitor_pwmfan_fan_speed
+      # Added 2026-11-22 (HA audit): ~34 % of all rows, read live by nothing that needs
+      # history. Kept recorded on purpose: Pi5 CPU temp + memory + disk, NAS CPU temp,
+      # disk/share usage and every baeraid binary sensor.
+      - sensor.system_monitor_io_pressure_some_60s_average
+      - sensor.system_monitor_load_15_min
+      - sensor.system_monitor_processor_use
+      - sensor.baeraid_network_br0_inbound
+      - sensor.baeraid_network_br0_outbound
+      - sensor.baeraid_ram_used
+      - sensor.baeraid_ram_usage
+      - sensor.baeraid_cpu_usage
+      - sensor.baeraid_cpu_power
+      - sensor.baeraid_docker_total_memory_used
+      - sensor.baeraid_docker_total_cpu
+      - sensor.baeraid_docker_total_memory
 
 # ---------------------------------------------------------------------------
 # DELIBERATELY still recorded (low volume, genuinely useful history):

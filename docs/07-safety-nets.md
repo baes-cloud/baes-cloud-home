@@ -53,7 +53,7 @@ The house tells me when something is wrong, and it fixes the routine failures it
       notification_id: bathroom_leak
   - variables:
       leak_speakers: '{{ ["media_player.club", "media_player.bathroom_sonos", "media_player.bathroom_2",
-        "media_player.bedroom_sonos", "media_player.office_sonos", "media_player.living_room_sonos"]
+        "media_player.bedroom_sonos", "media_player.office_sonos", "media_player.unnamed_room_5"]
         | select(''is_state'',[''on'',''paused'',''idle'']) | list }}'
   - action: scene.create
     data:
@@ -69,7 +69,7 @@ The house tells me when something is wrong, and it fixes the routine failures it
       - variables:
           leak_speakers: '{{ ["media_player.club", "media_player.bathroom_sonos",
             "media_player.bathroom_2", "media_player.bedroom_sonos", "media_player.office_sonos",
-            "media_player.living_room_sonos"] | select(''is_state'',[''on'',''paused'',''idle''])
+            "media_player.unnamed_room_5"] | select(''is_state'',[''on'',''paused'',''idle''])
             | list }}'
       - action: media_player.volume_set
         target:
@@ -126,7 +126,7 @@ The house tells me when something is wrong, and it fixes the routine failures it
       notification_id: bathroom_leak
   - variables:
       leak_speakers: '{{ ["media_player.club", "media_player.bathroom_sonos", "media_player.bathroom_2",
-        "media_player.bedroom_sonos", "media_player.office_sonos", "media_player.living_room_sonos"]
+        "media_player.bedroom_sonos", "media_player.office_sonos", "media_player.unnamed_room_5"]
         | select(''is_state'',[''on'',''paused'',''idle'']) | list }}'
   - action: tts.speak
     target:

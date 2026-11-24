@@ -142,7 +142,7 @@ A handful of custom sentences are matched locally and run straight away:
       sequence:
       - action: cover.set_cover_position
         target:
-          entity_id: cover.club_sheer_blinds
+          entity_id: cover.sheer_blinds
         data:
           position: 50
       - set_conversation_response: Sheers to half.

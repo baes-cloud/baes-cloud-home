@@ -205,8 +205,12 @@
     on the bathroom PIR, or on the office radar zone / office+wardrobe PIRs when the
     kitchen radar saw someone arrive in the last 2 min (a walk from the sofa; a parked
     ghost has an old last_changed and can''t pass). No kitchen triggers or kitchen
-    lights: it must never wake anyone on the couch. Off when back
-    in bed/sofa 2 min or office/wardrobe/bathroom empty 4 min. Created by Claude 2026-07-25.'
+    lights: it must never wake anyone on the couch.
+    2026-11-22: wardrobe LED swapped for the light.wardrobes group, plus
+    the Hue Flux strip and kitchen console candles (Bae''s request). Off when back
+    in bed/sofa 2 min or office/wardrobe/bathroom empty 4 min. Created by Claude 2026-07-25.
+    2026-11-07: the wardrobe PIR trigger pointed at binary_sensor.bathroom_motion,
+    which no longer exists; now binary_sensor.wardrobe_motion_occupancy.'
   triggers:
   - trigger: state
     entity_id: binary_sensor.bathroom_occupancy_sonoff_snzb_06p
@@ -215,8 +219,7 @@
   - trigger: state
     entity_id:
     - binary_sensor.rmm_default_office_occupancy
-    - binary_sensor.bathroom_motion
-    - binary_sensor.office_motion
+    - binary_sensor.wardrobe_motion_occupancy
     to: 'on'
     id: via_kitchen
   - trigger: state
@@ -231,6 +234,7 @@
     - binary_sensor.rmm_default_office_occupancy
     - binary_sensor.rmm_default_wardrobe_occupancy
     - binary_sensor.rmm_default_bathroom_occupancy
+    - binary_sensor.bathroom_occupancy_sonoff_snzb_06p
     to: 'off'
     for: 00:04:00
     id: away
@@ -248,12 +252,31 @@
     - conditions:
       - condition: trigger
         id: path
+      - alias: Washer guard - while the washer runs it shakes the bathroom mmWave, so
+          only count it if someone also moved in the bedroom/wardrobe in the last 2 min
+        condition: template
+        value_template: >-
+          {% if not is_state('binary_sensor.samsung_washer_da_wm_tp2_20_common_running','on') %}true{% else %}
+          {%- set ns = namespace(ok=false) -%}
+          {%- for e in ['binary_sensor.bedroom_motion','binary_sensor.wardrobe_motion_occupancy','binary_sensor.rmm_default_bedroom_occupancy','binary_sensor.rmm_default_bed_occupancy'] -%}
+          {%- set s = states[e] -%}
+          {%- if s is not none and (s.state == 'on' or (now() - s.last_changed).total_seconds() < 120) -%}{%- set ns.ok = true -%}{%- endif -%}
+          {%- endfor -%}{{ ns.ok }}{% endif %}
       sequence:
       - action: light.turn_on
         target:
-          entity_id: light.send_nudes
+          entity_id:
+          - light.wardrobes
+          - light.kitchen_console_candles
         data:
           brightness_pct: 40
+        continue_on_error: true
+      - alias: Flux strip much dimmer than the rest (Bae 2026-11-25)
+        action: light.turn_on
+        target:
+          entity_id: light.home_hue_flux_strip_light_1
+        data:
+          brightness_pct: 5
         continue_on_error: true
       - alias: WiZ mirror LED last, and only if reachable (pywizlight errors abort
           the run)
@@ -279,9 +302,18 @@
       sequence:
       - action: light.turn_on
         target:
-          entity_id: light.send_nudes
+          entity_id:
+          - light.wardrobes
+          - light.kitchen_console_candles
         data:
           brightness_pct: 40
+        continue_on_error: true
+      - alias: Flux strip much dimmer than the rest (Bae 2026-11-25)
+        action: light.turn_on
+        target:
+          entity_id: light.home_hue_flux_strip_light_1
+        data:
+          brightness_pct: 5
         continue_on_error: true
       - alias: WiZ mirror LED last, and only if reachable (pywizlight errors abort
           the run)
@@ -311,10 +343,18 @@
       - condition: state
         entity_id: binary_sensor.rmm_default_bathroom_occupancy
         state: 'off'
+      - alias: Bathroom PIR quiet too (2026-11-22, so a dead bedroom radar can't strand
+          or cut the path lights); ignored while the washer runs, which shakes it
+        condition: template
+        value_template: '{{ not is_state(''binary_sensor.bathroom_occupancy_sonoff_snzb_06p'',''on'')
+          or is_state(''binary_sensor.samsung_washer_da_wm_tp2_20_common_running'',''on'') }}'
       sequence:
       - action: light.turn_off
         target:
-          entity_id: light.send_nudes
+          entity_id:
+          - light.wardrobes
+          - light.home_hue_flux_strip_light_1
+          - light.kitchen_console_candles
         continue_on_error: true
       - alias: WiZ mirror LED last, and only if reachable
         if:
@@ -329,72 +369,103 @@
   mode: restart
 - id: '1785400000003'
   alias: 'RMM: Kitchen presence light'
-  description: PIR instant-on (kitchen_motion, physically moved back to the kitchen
-    2026-07-25) + radar-zone hold. Created by Claude 2026-07-25. Off branch treats
-    an unavailable PIR as no motion (dead PIR stranded the LED on). Changed by Claude
-    2026-10-25.
+  description: 'Kitchen lights (light.kitchen_group). ON in the day window from any
+    kitchen sensor (kitchen PIR = the IKEA VALLHORN, re-paired 2026-11-20, RMM kitchen
+    zone) or the front door opening. OFF is checked every minute (reload-proof, so
+    the sweeper no longer handles the kitchen): never while any kitchen sensor is
+    on. the guest dates, 06:00-21:00 (guests): off only after the kitchen has been
+    quiet 20 min AND the whole house (all PIRs, RMM zones, radar moving targets, front
+    door) quiet 15 min. Otherwise: off 5 min after the kitchen goes quiet (2026-11-17:
+    long hold limited to the guest dates). Rewritten by Claude 2026-11-17 for the
+    guests (old config in ~/Documents/claude/ha-backups/kitchen-hold-20261117).'
   triggers:
   - trigger: state
     entity_id:
     - binary_sensor.kitchen_motion
+    - binary_sensor.rmm_default_kitchen_occupancy
     to: 'on'
     id: 'on'
   - trigger: state
-    entity_id: binary_sensor.rmm_default_kitchen_occupancy
+    entity_id: binary_sensor.front_door_open
     to: 'on'
     id: 'on'
-  - trigger: state
-    entity_id: binary_sensor.rmm_default_kitchen_occupancy
-    to: 'off'
-    for: 00:03:00
-    id: 'off'
+  - trigger: time_pattern
+    minutes: /1
+    id: check
   conditions:
   - alias: Auto-stay is off (party mode suspends this)
     condition: state
     entity_id: input_boolean.auto_stay
     state: 'off'
   actions:
+  - variables:
+      kitchen_sensors:
+      - binary_sensor.kitchen_motion
+      - binary_sensor.rmm_default_kitchen_occupancy
+      - binary_sensor.front_door_open
+      house_sensors:
+      - binary_sensor.kitchen_motion
+      - binary_sensor.rmm_default_kitchen_occupancy
+      - binary_sensor.front_door_open
+      - binary_sensor.rmm_default_lounge_occupancy
+      - binary_sensor.rmm_default_office_occupancy
+      - binary_sensor.rmm_default_wardrobe_occupancy
+      - binary_sensor.rmm_default_bathroom_occupancy
+      - binary_sensor.rmm_default_bedroom_occupancy
+      - binary_sensor.rmm_default_sofa_occupancy
+      - binary_sensor.rmm_default_bed_occupancy
+      - binary_sensor.bathroom_occupancy_sonoff_snzb_06p
+      - binary_sensor.bedroom_motion
+      - binary_sensor.wardrobe_motion_occupancy
+      - binary_sensor.club_apollo_r_pro_1_ld2450_moving_target
+      - binary_sensor.ld2450_tracker_moving_target
+      - binary_sensor.ld2450_tracker_2_moving_target
   - choose:
     - conditions:
       - condition: trigger
         id: 'on'
-      - condition: template
+      - alias: Day window
+        condition: template
         value_template: '{% set d = now().weekday() %}{% set t = now().hour*60 + now().minute
           %}{{ not ((d in [6,0,1,2,3] and t >= 21*60) or (d in [0,1,2,3,4] and t <
           7*60) or (d in [4,5] and t >= 23*60) or (d in [5,6] and t < 9*60)) }}'
       sequence:
       - action: light.turn_on
-        data: {}
         target:
           entity_id: light.kitchen_group
+        data: {}
     - conditions:
       - condition: trigger
-        id: 'off'
-      - condition: not
-        alias: PIR not reporting motion (unavailable counts as no motion)
-        conditions:
-        - condition: state
-          entity_id: binary_sensor.kitchen_motion
-          state: 'on'
+        id: check
+      - condition: state
+        entity_id: light.kitchen_group
+        state: 'on'
+      - alias: Kitchen (and, the guest dates by day, the house) quiet long enough
+        condition: template
+        value_template: '{% set ns = namespace(q=86400) %}{% for s in expand(kitchen_sensors)
+          %}{% if s.state == ''on'' %}{% set ns.q = 0 %}{% else %}{% set ns.q = [ns.q,
+          (now() - s.last_changed).total_seconds()] | min %}{% endif %}{% endfor %}{%
+          set kq = ns.q %}{% set ns = namespace(q=86400) %}{% for s in expand(house_sensors)
+          %}{% if s.state == ''on'' %}{% set ns.q = 0 %}{% else %}{% set ns.q = [ns.q,
+          (now() - s.last_changed).total_seconds()] | min %}{% endif %}{% endfor %}{%
+          set hq = ns.q %}{% set long = is_state('input_boolean.guests_staying','on')
+          and 6 <= now().hour < 21 %}{{ (kq > 1200 and hq > 900) if long else (kq
+          > 300) }}'
       sequence:
       - action: light.turn_off
         target:
-          entity_id:
-          - light.kitchen_group
+          entity_id: light.kitchen_group
         data: {}
-  mode: restart
+  mode: queued
+  max: 5
 - id: '1785400000004'
   alias: 'RMM: Office presence light'
-  description: Office lights. ON from the desk PIR (binary_sensor.office_motion),
-    the shared wardrobe/office PIR, or the radar office zone. OFF only when BOTH the
-    desk PIR and the radar zone are clear - the zone alone goes 'off' while sitting
-    still at the desk, which is what kept killing the lights. Hold is 25 min during
-    business hours (Mon-Fri 08:00-18:00), 5 min otherwise. Updated by Claude 2026-07-27.
+  description: Office lights. ON from the shared wardrobe/office PIR or the radar
+    office zone; OFF when the radar zone has been clear 25 min during business hours
+    (Mon-Fri 08:00-18:00), 5 min otherwise. 2026-11-20 (Claude) the desk PIR (office_motion)
+    moved to the kitchen and was re-paired as kitchen_motion, so it no longer gates
+    the office lights.
   triggers:
-  - trigger: state
-    entity_id: binary_sensor.office_motion
-    to: 'on'
-    id: 'on'
   - trigger: state
     entity_id:
     - binary_sensor.wardrobe_motion_occupancy
@@ -406,20 +477,10 @@
     to: 'on'
     id: 'on'
   - trigger: state
-    entity_id: binary_sensor.office_motion
-    to: 'off'
-    for: 00:05:00
-    id: off_short
-  - trigger: state
     entity_id: binary_sensor.rmm_default_office_occupancy
     to: 'off'
     for: 00:05:00
     id: off_short
-  - trigger: state
-    entity_id: binary_sensor.office_motion
-    to: 'off'
-    for: 00:25:00
-    id: off_long
   - trigger: state
     entity_id: binary_sensor.rmm_default_office_occupancy
     to: 'off'
@@ -450,9 +511,6 @@
         value_template: '{% set d = now().weekday() %}{% set t = now().hour*60 + now().minute
           %}{{ d in [0,1,2,3,4] and t >= 8*60 and t < 18*60 }}'
       - condition: state
-        entity_id: binary_sensor.office_motion
-        state: 'off'
-      - condition: state
         entity_id: binary_sensor.rmm_default_office_occupancy
         state: 'off'
       sequence:
@@ -467,9 +525,6 @@
         - condition: template
           value_template: '{% set d = now().weekday() %}{% set t = now().hour*60 +
             now().minute %}{{ d in [0,1,2,3,4] and t >= 8*60 and t < 18*60 }}'
-      - condition: state
-        entity_id: binary_sensor.office_motion
-        state: 'off'
       - condition: state
         entity_id: binary_sensor.rmm_default_office_occupancy
         state: 'off'
@@ -526,19 +581,40 @@
   mode: restart
 - id: '1785400000006'
   alias: 'RMM: Bathroom light with shower hold'
-  description: PIR instant-on; radar occupancy holds the light while you're still
+  description: 'PIR instant-on; radar occupancy holds the light while you''re still
     (shower/bath) instead of the old 120 s PIR timeout. Created by Claude 2026-07-25.
+    2026-11-18: washer guard (Bae''s request). The washer''s vibration trips both
+    bathroom sensors (SNZB-06P and the RMM bathroom zone, which also ghosts the office
+    zone). When Bae is away, guests_staying is off and the washer is running, the
+    light only turns on if the front door, a PIR outside the bathroom, or the lounge/kitchen/sofa
+    radar zone saw someone in the last 15 min (input_datetime.real_person_seen, stamped
+    by packages/bathroom_washer_guard.yaml, restart-proof). On triggers also ignore
+    unknown/unavailable -> on (Zigbee restart blips). Backup ~/Documents/claude/ha-backups/bathroom-washer-20261118.
+    2026-11-21: also turns off 2 min after the SNZB-06P clears (previously only the
+    radar clearing triggered the off, so when the SNZB cleared last the 5-min sweeper
+    did it). Backup ~/Documents/claude/ha-backups/shower-hold-snzb-20261121.'
   triggers:
   - trigger: state
     entity_id: binary_sensor.bathroom_occupancy_sonoff_snzb_06p
     to: 'on'
     id: 'on'
+    not_from:
+    - unknown
+    - unavailable
   - trigger: state
     entity_id: binary_sensor.rmm_default_bathroom_occupancy
     to: 'on'
     id: 'on'
+    not_from:
+    - unknown
+    - unavailable
   - trigger: state
     entity_id: binary_sensor.rmm_default_bathroom_occupancy
+    to: 'off'
+    for: 00:02:00
+    id: 'off'
+  - trigger: state
+    entity_id: binary_sensor.bathroom_occupancy_sonoff_snzb_06p
     to: 'off'
     for: 00:02:00
     id: 'off'
@@ -552,6 +628,19 @@
         value_template: '{% set d = now().weekday() %}{% set t = now().hour*60 + now().minute
           %}{{ not ((d in [6,0,1,2,3] and t >= 21*60) or (d in [0,1,2,3,4] and t <
           7*60) or (d in [4,5] and t >= 23*60) or (d in [5,6] and t < 9*60)) }}'
+      - alias: 'Not a washer false alarm: if nobody is home and the washer runs, a
+          real person must have been seen outside the bathroom (doors, PIRs, main-room
+          radar) in the last 15 min'
+        condition: template
+        value_template: '{% if is_state(''binary_sensor.bae_home'',''on'') or is_state(''input_boolean.guests_staying'',''on'')
+          or not is_state(''binary_sensor.samsung_washer_da_wm_tp2_20_common_running'',''on'')
+          %}true{% else %}{% set seen = state_attr(''input_datetime.real_person_seen'',''timestamp'')
+          %}{{ (seen is number and now().timestamp() - seen < 900) or (expand(["binary_sensor.front_door_open",
+          "binary_sensor.ikea_of_sweden_parasoll_door_window_sensor", "binary_sensor.kitchen_motion",
+          "binary_sensor.bedroom_motion", "binary_sensor.wardrobe_motion_occupancy",
+          "binary_sensor.rmm_default_lounge_occupancy", "binary_sensor.rmm_default_kitchen_occupancy",
+          "binary_sensor.rmm_default_sofa_occupancy"]) | selectattr(''state'',''eq'',''on'')
+          | list | count > 0) }}{% endif %}'
       sequence:
       - action: light.turn_on
         target:
@@ -564,6 +653,10 @@
       - condition: state
         entity_id: binary_sensor.bathroom_occupancy_sonoff_snzb_06p
         state: 'off'
+      - condition: state
+        entity_id: binary_sensor.rmm_default_bathroom_occupancy
+        state: 'off'
+        for: 00:02:00
       sequence:
       - action: light.turn_off
         target:
@@ -629,14 +722,6 @@
         - action: light.turn_on
           target:
             entity_id: light.couch
-      - if:
-        - condition: state
-          entity_id: input_boolean.override_accent_lights
-          state: 'off'
-        then:
-        - action: light.turn_on
-          target:
-            entity_id: light.club_accent_lights
     - conditions:
       - condition: trigger
         id: 'off'
@@ -648,7 +733,6 @@
         target:
           entity_id:
           - light.couch
-          - light.club_accent_lights
   mode: restart
 - id: '1785400000008'
   alias: 'RMM: Console candles'
@@ -694,6 +778,9 @@
   alias: 'RMM: Bedroom presence light'
   description: Bedroom zone + PIR, daytime only so it never fires on the way to the
     bathroom at night. Replaces the bedroom motion blueprint. Created by Claude 2026-07-25.
+    Since 2026-11-22 off needs BOTH the radar zone and the PIR quiet 5 min, so the lights
+    still go off when the bedroom radar is offline (zone frozen) and don't go off while
+    the PIR still sees you.
   triggers:
   - trigger: state
     entity_id: binary_sensor.bedroom_motion
@@ -705,6 +792,11 @@
     id: 'on'
   - trigger: state
     entity_id: binary_sensor.rmm_default_bedroom_occupancy
+    to: 'off'
+    for: 00:05:00
+    id: 'off'
+  - trigger: state
+    entity_id: binary_sensor.bedroom_motion
     to: 'off'
     for: 00:05:00
     id: 'off'
@@ -732,6 +824,10 @@
     - conditions:
       - condition: trigger
         id: 'off'
+      - alias: Both quiet (a dead radar leaves the zone frozen off, so the PIR decides)
+        condition: template
+        value_template: '{{ not is_state(''binary_sensor.rmm_default_bedroom_occupancy'',''on'')
+          and not is_state(''binary_sensor.bedroom_motion'',''on'') }}'
       sequence:
       - action: light.turn_off
         target:
@@ -882,7 +978,7 @@
   - condition: not
     conditions:
     - condition: state
-      entity_id: device_tracker.motorola_razr_50
+      entity_id: device_tracker.pixel_10a
       state: home
   - condition: template
     value_template: '{{ expand(''binary_sensor.rmm_default_lounge_occupancy'',''binary_sensor.rmm_default_sofa_occupancy'',''binary_sensor.rmm_default_bed_occupancy'',''binary_sensor.rmm_default_bedroom_occupancy'',''binary_sensor.rmm_default_kitchen_occupancy'',''binary_sensor.rmm_default_office_occupancy'',''binary_sensor.rmm_default_bathroom_occupancy'',''binary_sensor.rmm_default_wardrobe_occupancy'')
@@ -933,7 +1029,7 @@
     to: 'on'
     id: person
   - trigger: state
-    entity_id: device_tracker.motorola_razr_50
+    entity_id: device_tracker.pixel_10a
     to: home
     id: person
   - trigger: state
@@ -957,7 +1053,7 @@
       chance)'
     condition: template
     value_template: '{{ trigger.id == ''person'' or is_state(''binary_sensor.bae_home'',''on'')
-      or is_state(''device_tracker.motorola_razr_50'',''home'') or (now() - states.binary_sensor.ikea_of_sweden_parasoll_door_window_sensor.last_changed).total_seconds()
+      or is_state(''device_tracker.pixel_10a'',''home'') or (now() - states.binary_sensor.ikea_of_sweden_parasoll_door_window_sensor.last_changed).total_seconds()
       < 600 or (now() - states.lock.lock_pro_0fa0.last_changed).total_seconds() <
       600 }}'
   actions:
@@ -990,7 +1086,7 @@
   - condition: not
     conditions:
     - condition: state
-      entity_id: device_tracker.motorola_razr_50
+      entity_id: device_tracker.pixel_10a
       state: home
   - alias: Not just the Roborock (unless a door moved in the last 10 min)
     condition: template
@@ -1020,65 +1116,6 @@
       message: Radar occupancy while away at {{ now().strftime('%H:%M:%S') }}.
       notification_id: rmm_intruder
   mode: single
-- id: '1785400000015'
-  alias: 'RMM: Occupancy climate'
-  description: Club aircon runs only when the open-plan zones are actually occupied
-    (5 min on, 20 min empty off). Created by Claude 2026-07-25.
-  triggers:
-  - trigger: state
-    entity_id:
-    - binary_sensor.rmm_default_lounge_occupancy
-    - binary_sensor.rmm_default_sofa_occupancy
-    - binary_sensor.rmm_default_kitchen_occupancy
-    - binary_sensor.rmm_default_office_occupancy
-    to: 'on'
-    for: 00:05:00
-    id: occupied
-  - trigger: state
-    entity_id:
-    - binary_sensor.rmm_default_lounge_occupancy
-    - binary_sensor.rmm_default_sofa_occupancy
-    - binary_sensor.rmm_default_kitchen_occupancy
-    - binary_sensor.rmm_default_office_occupancy
-    to: 'off'
-    for: 00:20:00
-    id: empty
-  conditions: []
-  actions:
-  - choose:
-    - conditions:
-      - condition: trigger
-        id: occupied
-      - condition: state
-        entity_id: input_boolean.away_mode
-        state: 'off'
-      - condition: state
-        entity_id: climate.aircon
-        state: 'off'
-      sequence:
-      - action: climate.turn_on
-        target:
-          entity_id: climate.aircon
-    - conditions:
-      - condition: trigger
-        id: empty
-      - condition: state
-        entity_id: binary_sensor.rmm_default_lounge_occupancy
-        state: 'off'
-      - condition: state
-        entity_id: binary_sensor.rmm_default_sofa_occupancy
-        state: 'off'
-      - condition: state
-        entity_id: binary_sensor.rmm_default_kitchen_occupancy
-        state: 'off'
-      - condition: state
-        entity_id: binary_sensor.rmm_default_office_occupancy
-        state: 'off'
-      sequence:
-      - action: climate.turn_off
-        target:
-          entity_id: climate.aircon
-  mode: restart
 - id: '1785400000016'
   alias: 'RMM: Guest mode auto'
   description: 2+ radar targets for 10 min -> guest mode on (suppresses sleep lights-off
@@ -1114,9 +1151,9 @@
   mode: restart
 - id: '1785400000017'
   alias: 'RMM: Weekday morning routine'
-  description: 'First bed-exit on a weekday morning while home: fade lights to Santorini,
-    Serif on to HDMI4, Google TV Streamer opens the ABC News live stream. Created
-    by Claude 2026-07-25.'
+  description: 'First bed-exit on a weekday morning while home: fade lights to Santorini.
+    (The TV + ABC News live stream step was removed 2026-11-21 at Bae''s request.)
+    Created by Claude 2026-07-25.'
   triggers:
   - trigger: state
     entity_id: binary_sensor.rmm_default_bed_occupancy
@@ -1148,34 +1185,13 @@
       entity_id: scene.home_home_santorini
     data:
       transition: 20
-  - action: media_player.turn_on
-    target:
-      entity_id: media_player.55_the_serif_3
-    continue_on_error: true
-  - delay: 00:00:06
-  - action: media_player.select_source
-    target:
-      entity_id: media_player.55_the_serif_3
-    data:
-      source: hdmi4
-    continue_on_error: true
-  - action: remote.turn_on
-    target:
-      entity_id: remote.the_club_tvv
-    continue_on_error: true
-  - delay: 00:00:10
-  - action: androidtv.adb_command
-    target:
-      entity_id: media_player.club_android_tv_10_0_0_248_club_tv
-    data:
-      command: am start -a android.intent.action.VIEW -d "https://www.youtube.com/@abcnewsaustralia/live"
-    continue_on_error: true
   mode: single
 - id: '1785400000018'
   alias: 'RMM: Morning calendar briefing'
   description: 'First bathroom visit on a weekday morning: the bathroom Sonos reads
-    today''s calendar, then joins the Club (TV audio / news). Created by Claude 2026-07-25.
-    Skipped entirely if media_player.bathroom_sonos is unavailable.'
+    today''s calendar, then joins the Club (TV audio). News digest removed 2026-11-21.
+    Created by Claude 2026-07-25. Skipped entirely if media_player.bathroom_sonos
+    is unavailable.'
   triggers:
   - trigger: state
     entity_id: binary_sensor.rmm_default_bathroom_occupancy
@@ -1230,36 +1246,6 @@
   - wait_template: '{{ states(''media_player.bathroom_sonos'') != ''playing'' }}'
     timeout: 00:01:30
     continue_on_timeout: true
-  - choose:
-    - conditions:
-      - condition: template
-        value_template: "{% set g = state_attr('sensor.daily_news','generated_at')
-          %} {{ state_attr('sensor.daily_news','tts_chunks') is iterable\n   and state_attr('sensor.daily_news','tts_chunks')
-          | count > 0\n   and g is not none\n   and (now() - (g | as_datetime)).total_seconds()
-          < 86400 }}"
-      sequence:
-      - repeat:
-          for_each: '{{ state_attr(''sensor.daily_news'',''tts_chunks'') }}'
-          sequence:
-          - action: tts.speak
-            target:
-              entity_id: tts.home_assistant_cloud
-            data:
-              media_player_entity_id: media_player.bathroom_sonos
-              cache: false
-              message: '{{ repeat.item }}'
-          - wait_template: '{{ states(''media_player.bathroom_sonos'') != ''playing''
-              }}'
-            timeout: 00:01:30
-            continue_on_timeout: true
-    default:
-    - action: tts.speak
-      target:
-        entity_id: tts.home_assistant_cloud
-      data:
-        media_player_entity_id: media_player.bathroom_sonos
-        cache: false
-        message: News digest unavailable this morning.
   - wait_template: '{{ states(''media_player.bathroom_sonos'') != ''playing'' }}'
     timeout: 00:06:00
     continue_on_timeout: true
@@ -1328,7 +1314,6 @@
       data: {}
       target:
         entity_id:
-        - light.club_accent_chair_lights
         - light.club_accent_lights
   - if:
     - condition: state
@@ -1408,13 +1393,14 @@
   mode: single
 - id: '1785400000022'
   alias: 'RMM: Weekday scene schedule'
-  description: 'Mon-Fri 18:00 while home: script.club (the Gay scene: couch pastel,
-    art 75%, bar, candles), then Hue Disturbia 2 (dynamic) on the Hue lights. Sun-Thu
-    21:00: script.long_blue (scene.night), same as a long press of BLUE. Created by
-    Claude 2026-07-25. 2026-11-03: evening moved from sunset to 18:00 and gets Disturbia
-    2 on the Hue lights (Bae''s request); 21:00 is now exactly long blue. While light
-    automations are paused, packages/paused_lights_schedule.yaml does this on lit
-    lights only.'
+  description: 'Mon-Fri 18:00 while home: Hue Disturbia (dynamic), couch solid warm
+    yellow, art 75%, bar + bar spots, TV art, candles, Send noods neon (Bae''s evening
+    look, snapshot 2026-11-17; replaced the Gay scene + Disturbia 2). Sun-Thu 21:00:
+    script.long_blue (scene.night), same as a long press of BLUE. Created by Claude
+    2026-07-25. 2026-11-03: evening moved from sunset to 18:00 and gets Disturbia
+    2 on the Hue lights (Bae''s request); 21:00 is now exactly long blue (2026-11-17:
+    plus Send noods neon off, Fridays too). While light automations are paused, packages/paused_lights_schedule.yaml
+    does this on lit lights only.'
   triggers:
   - trigger: time
     at: '18:00:00'
@@ -1447,15 +1433,42 @@
         entity_id: binary_sensor.bae_home
         state: 'on'
       sequence:
-      - alias: Club (Gay) scene for everything
-        action: script.club
-      - delay: 00:00:02
-      - alias: 'Hue lights: Disturbia 2 (dynamic)'
+      - alias: 'Hue lights: Disturbia (dynamic)'
         action: hue.activate_scene
         target:
-          entity_id: scene.home_home_disturbia_2
+          entity_id: scene.home_home_disturbia
         data:
           dynamic: true
+      - alias: Couch solid warm yellow
+        action: light.turn_on
+        target:
+          entity_id: light.couch
+        data:
+          hs_color:
+          - 53.858
+          - 76.772
+          brightness: 150
+      - alias: Art pendants 75%
+        action: light.turn_on
+        target:
+          entity_id: light.art_group
+        data:
+          brightness_pct: 75
+      - alias: Bar, bar spots, TV art, candles on
+        action: light.turn_on
+        target:
+          entity_id:
+          - light.bar_lights
+          - light.bar_spotlights
+          - light.tv_art_lights
+          - light.kitchen_console_candles
+        data: {}
+      - alias: Send noods balcony neon on
+        action: light.turn_on
+        target:
+          entity_id: light.club_accent_chair_lights
+        data: {}
+        continue_on_error: true
     - conditions:
       - condition: trigger
         id: night
@@ -1469,6 +1482,26 @@
       sequence:
       - alias: Same as a long press of BLUE
         action: script.long_blue
+        data: {}
+      - alias: Send noods balcony neon off
+        action: light.turn_off
+        target:
+          entity_id: light.club_accent_chair_lights
+        data: {}
+        continue_on_error: true
+    - conditions:
+      - condition: trigger
+        id: night
+      - condition: time
+        weekday:
+        - fri
+      sequence:
+      - alias: 'Friday 21:00: Send noods off too (the 18:00 scene turned it on)'
+        action: light.turn_off
+        target:
+          entity_id: light.club_accent_chair_lights
+        data: {}
+        continue_on_error: true
   mode: queued
   max: 5
 - id: '1785400000023'
@@ -1484,7 +1517,8 @@
     sees someone after RMM loses a still person), so sitting still no longer turns
     the couch lights off. Changed by Claude 2026-10-04. Kitchen branch now clears
     the whole kitchen group (LED + floor) and treats an unavailable PIR as no motion.
-    Changed by Claude 2026-10-25.'
+    Changed by Claude 2026-10-25. 2026-11-17: kitchen branch removed; RMM: Kitchen
+    presence light now checks its own off every minute.'
   triggers:
   - trigger: time_pattern
     minutes: /5
@@ -1504,34 +1538,10 @@
   - choose:
     - conditions:
       - condition: template
-        value_template: '{{ is_state(''binary_sensor.rmm_default_kitchen_occupancy'',''off'')
-          and (now() - states.binary_sensor.rmm_default_kitchen_occupancy.last_changed).total_seconds()
-          > 180 }}'
-      - condition: template
-        value_template: '{{ is_state(''light.kitchen_group'',''on'') or is_state(''light.kitchen_art'',''on'')
-          }}'
-      - condition: not
-        alias: PIR not reporting motion (unavailable counts as no motion)
-        conditions:
-        - condition: state
-          entity_id: binary_sensor.kitchen_motion
-          state: 'on'
-      sequence:
-      - action: light.turn_off
-        target:
-          entity_id:
-          - light.kitchen_group
-        data: {}
-  - choose:
-    - conditions:
-      - condition: template
         value_template: '{% set biz =  d in [0,1,2,3,4] and t >= 8*60 and t < 18*60  %}{%
           set lim = 1500 if biz else 300 %}{{ is_state(''binary_sensor.rmm_default_office_occupancy'',''off'')
           and (now() - states.binary_sensor.rmm_default_office_occupancy.last_changed).total_seconds()
           > lim }}'
-      - condition: state
-        entity_id: binary_sensor.office_motion
-        state: 'off'
       - condition: template
         value_template: '{{ is_state(''light.office_only'',''on'') }}'
       sequence:
@@ -1607,8 +1617,7 @@
           and (now() - states.binary_sensor.sofa_occupied_held.last_changed).total_seconds()
           > 180 }}'
       - condition: template
-        value_template: '{{ is_state(''light.couch'',''on'') or is_state(''light.club_accent_lights'',''on'')
-          }}'
+        value_template: '{{ is_state(''light.couch'',''on'') }}'
       - condition: state
         entity_id: binary_sensor.rmm_default_lounge_occupancy
         state: 'off'
@@ -1617,7 +1626,6 @@
         target:
           entity_id:
           - light.couch
-          - light.club_accent_lights
   mode: single
 - id: '1785400000024'
   alias: 'RMM: LD2450 ghost auto-recover'
@@ -2005,7 +2013,7 @@
       notification_id: bathroom_leak
   - variables:
       leak_speakers: '{{ ["media_player.club", "media_player.bathroom_sonos", "media_player.bathroom_2",
-        "media_player.bedroom_sonos", "media_player.office_sonos", "media_player.living_room_sonos"]
+        "media_player.bedroom_sonos", "media_player.office_sonos", "media_player.unnamed_room_5"]
         | select(''is_state'',[''on'',''paused'',''idle'']) | list }}'
   - action: scene.create
     data:
@@ -2021,7 +2029,7 @@
       - variables:
           leak_speakers: '{{ ["media_player.club", "media_player.bathroom_sonos",
             "media_player.bathroom_2", "media_player.bedroom_sonos", "media_player.office_sonos",
-            "media_player.living_room_sonos"] | select(''is_state'',[''on'',''paused'',''idle''])
+            "media_player.unnamed_room_5"] | select(''is_state'',[''on'',''paused'',''idle''])
             | list }}'
       - action: media_player.volume_set
         target:
@@ -2078,7 +2086,7 @@
       notification_id: bathroom_leak
   - variables:
       leak_speakers: '{{ ["media_player.club", "media_player.bathroom_sonos", "media_player.bathroom_2",
-        "media_player.bedroom_sonos", "media_player.office_sonos", "media_player.living_room_sonos"]
+        "media_player.bedroom_sonos", "media_player.office_sonos", "media_player.unnamed_room_5"]
         | select(''is_state'',[''on'',''paused'',''idle'']) | list }}'
   - action: tts.speak
     target:
@@ -2176,19 +2184,19 @@
       entity_id: light.club_apollo_r_pro_1_rgb_light
   mode: restart
 - id: '1789400000001'
-  alias: Presence · restart Razr BLE transmitter
+  alias: Presence · restart phone BLE transmitter
   description: Safety net for Bermuda room presence. If the Companion app (GPS) says
-    Bae is home but Bermuda cannot hear the Razr's BLE transmitter, send the Companion
+    Bae is home but Bermuda cannot hear the Pixel 10a's BLE transmitter, send the Companion
     app command to switch the transmitter back on. Rate-limited to once per 10 minutes.
     Added by Claude 2026-09-13.
   mode: single
   triggers:
   - trigger: state
-    entity_id: device_tracker.bermuda_razr_bermuda_tracker
+    entity_id: device_tracker.bermuda_pixel_10a_bermuda_tracker
     to: not_home
     id: ble_lost
   - trigger: state
-    entity_id: device_tracker.motorola_razr_50
+    entity_id: device_tracker.pixel_10a
     to: home
     for: 00:02:00
     id: arrived
@@ -2197,12 +2205,12 @@
     id: periodic
   conditions:
   - condition: state
-    entity_id: device_tracker.motorola_razr_50
+    entity_id: device_tracker.pixel_10a
     state: home
   - condition: not
     conditions:
     - condition: state
-      entity_id: device_tracker.bermuda_razr_bermuda_tracker
+      entity_id: device_tracker.bermuda_pixel_10a_bermuda_tracker
       state: home
   - condition: template
     value_template: '{{ this.attributes.last_triggered is none or (now() - this.attributes.last_triggered).total_seconds()
@@ -2218,9 +2226,9 @@
           command: turn_on
   - action: logbook.log
     data:
-      name: Razr BLE transmitter
+      name: Phone BLE transmitter
       message: 'restart sent ({{ trigger.id }}): Companion app says home, Bermuda
-        BLE says {{ states(''device_tracker.bermuda_razr_bermuda_tracker'') }}'
+        BLE says {{ states(''device_tracker.bermuda_pixel_10a_bermuda_tracker'') }}'
 - id: '1789500000001'
   alias: Standby · health alert
   description: 'Warns when the failover standby is not fit for purpose: the Pi400
@@ -2396,9 +2404,9 @@
     phrase: '{{ ''Front door unlocked'' if trigger.id == ''unlocked'' else ''Front
       door locked'' }}'
 - id: '1788110000003'
-  alias: Front door · push to Razr
-  description: Every lock/unlock, on a quiet channel. Replaces itself rather than
-    stacking.
+  alias: Front door · push to phone
+  description: Lock/unlock pushes on a quiet channel, replacing each other. Since
+    2026-11-22 only while Bae is away or for a tag scan (was ~18 a day at home).
   triggers:
   - trigger: state
     entity_id: lock.lock_pro_0fa0
@@ -2409,11 +2417,19 @@
     to: locked
     id: locked
   actions:
-  - alias: Not while guests are staying (Bae away)
+  - alias: Not while guests are staying (Bae away); at home only for tag scans
     if:
     - condition: state
       entity_id: input_boolean.guests_staying
       state: 'off'
+    - condition: or
+      conditions:
+      - condition: state
+        entity_id: binary_sensor.bae_home
+        state: 'off'
+      - condition: state
+        entity_id: input_boolean.front_door_tag_grace
+        state: 'on'
     then:
     - action: script.turn_on
       target:
@@ -2790,56 +2806,6 @@
   - action: input_boolean.turn_off
     target:
       entity_id: input_boolean.front_door_keep_unlocked
-- id: '1789000000001'
-  alias: 'News: mirror digest into local storage'
-  description: Copies the published digest into /config/www/news so it is reachable
-    at /local/news/index.html through Nabu Casa when away from home.
-  triggers:
-  - trigger: time
-    at: 05:05:00
-  conditions: []
-  actions:
-  - action: shell_command.mirror_news_digest
-- id: '1789000000002'
-  alias: 'News: alert on repeated curation failures'
-  description: Two consecutive failed runs means the job is broken rather than unlucky.
-    The usual cause is expired headless Claude Code auth on baelap.
-  triggers:
-  - trigger: numeric_state
-    entity_id: sensor.daily_news_health
-    attribute: failure_count
-    above: 1
-  conditions: []
-  actions:
-  - action: persistent_notification.create
-    data:
-      title: News digest is failing
-      message: '{{ state_attr(''sensor.daily_news_health'',''failure_count'') }} consecutive
-        failures. Last error: {{ state_attr(''sensor.daily_news_health'',''last_error'')
-        }}. Check `journalctl -u news-digest` on baelap — headless Claude Code auth
-        may have expired.'
-      notification_id: news_digest_failing
-  mode: single
-- id: '1789000000003'
-  alias: 'News: alert when the digest goes stale'
-  description: 'Catches the case health.json cannot report: baelap down or SSH to
-    Unraid broken, so nothing new arrives at all.'
-  triggers:
-  - trigger: time_pattern
-    hours: /6
-  conditions:
-  - condition: template
-    value_template: '{% set g = state_attr(''sensor.daily_news'',''generated_at'')
-      %} {{ g is not none and (now() - (g | as_datetime)).total_seconds() > 93600
-      }}'
-  actions:
-  - action: persistent_notification.create
-    data:
-      title: News digest is stale
-      message: No fresh digest since {{ state_attr('sensor.daily_news','generated_at')
-        }}. baelap may be down or unable to reach Unraid.
-      notification_id: news_digest_stale
-  mode: single
 - id: '1788110000011'
   alias: Front door · door sensors disagree
   description: The Zigbee contact sensor and the SwitchBot Lock Pro's built-in door
@@ -3833,76 +3799,6 @@
             data:
               tag: washer
   mode: queued
-- id: '1790500000005'
-  alias: Attic camera · alert while away
-  description: Nest attic camera motion/person/sound while away → Gemini describes
-    the event clip (best effort) and a push with the event thumbnail. Silent when
-    the camera is unplugged (no events). 2-min cooldown.
-  triggers:
-  - trigger: state
-    entity_id: event.attic_attic_camera_motion
-    not_from:
-    - unavailable
-    - unknown
-    not_to:
-    - unavailable
-    - unknown
-  conditions:
-  - condition: state
-    entity_id: input_boolean.guests_staying
-    state: 'off'
-    alias: Guest mode (Bae away) is off
-  - condition: or
-    conditions:
-    - condition: state
-      entity_id: input_boolean.away_mode
-      state: 'on'
-    - condition: not
-      conditions:
-      - condition: state
-        entity_id: person.bae
-        state: home
-  - condition: template
-    value_template: '{{ this.attributes.last_triggered is none or (now() - this.attributes.last_triggered).total_seconds()
-      > 120 }}'
-  actions:
-  - variables:
-      kind: '{{ trigger.to_state.attributes.event_type | default(''camera_motion'')
-        }}'
-      eid: '{{ trigger.to_state.attributes.nest_event_id }}'
-      dev: '{{ device_id(''camera.attic_attic_camera'') }}'
-  - variables:
-      label: '{{ {''camera_person'':''Person'',''camera_sound'':''Sound'',''camera_motion'':''Motion''}.get(kind,''Motion'')
-        }}'
-  - action: ai_task.generate_data
-    data:
-      task_name: attic camera
-      entity_id: ai_task.google_ai_task
-      instructions: This is a home security camera event. In one short sentence (max
-        20 words), say what is happening. Mention any people or animals; say 'nothing
-        notable' if there is nothing.
-      attachments:
-      - media_content_id: media-source://nest/{{ dev }}/{{ eid }}
-        media_content_type: video/mp4
-    response_variable: ai
-    continue_on_error: true
-  - action: script.turn_on
-    target:
-      entity_id: script.notify_bae
-    data:
-      variables:
-        title: 'Attic camera: {{ label }}'
-        message: '{{ ai.data if (ai is defined and ai.data is defined and ai.data)
-          else label ~ '' detected at '' ~ now().strftime(''%-I:%M %p'') ~ ''.'' }}'
-        data:
-          image: /api/nest/event_media/{{ dev }}/{{ eid }}/thumbnail
-          tag: attic_cam
-          group: camera
-          channel: Camera
-          clickAction: entityId:camera.attic_attic_camera
-          priority: high
-          ttl: 0
-  mode: single
 - id: '1790500000006'
   alias: Intruder flag · clear
   description: Clears input_boolean.intruder_alert_active (the remotes' red popup)
@@ -4157,7 +4053,7 @@
       sequence:
       - action: cover.set_cover_position
         target:
-          entity_id: cover.club_sheer_blinds
+          entity_id: cover.sheer_blinds
         data:
           position: 50
       - set_conversation_response: Sheers to half.
@@ -4468,7 +4364,7 @@
   max_exceeded: silent
 - id: tv_pc_idle_off
   alias: TV · off when the PC is idle and the lounge is empty
-  description: Turns the Serif off when it's showing baehp (HDMI1), nobody has touched
+  description: Turns the Serif off when it's showing baehp (HDMI2), nobody has touched
     the PC for 45 min, nothing is playing on it, and the RMM lounge + sofa zones have
     been empty for 10 min. Skipped in auto-stay (party) mode. Built 2026-10-08, source
     in ~/Documents/claude/tv-pc.
@@ -4496,7 +4392,7 @@
   - condition: state
     entity_id: media_player.55_the_serif_3
     attribute: source
-    state: hdmi1
+    state: hdmi2
   - condition: numeric_state
     entity_id: sensor.baehp_idle
     above: 2700
@@ -4521,9 +4417,11 @@
 - id: tv_pc_wake_on_input
   alias: TV · wake to the PC on keyboard or mouse
   description: Touching baehp's keyboard or mouse after 2+ min idle turns the Serif
-    on (if needed) and switches it to HDMI1, baehp's input. The HP has no HDMI-CEC,
+    on (if needed) and switches it to HDMI2, baehp's input. The HP has no HDMI-CEC,
     so SmartThings does it. sensor.baehp_idle comes from LNXlink. Built 2026-10-08,
-    source in ~/Documents/claude/tv-pc.
+    source in ~/Documents/claude/tv-pc. Since 2026-11-22 it ignores idle resets within 60 s
+    of the TV changing state or 2 min of the auto-off (the off itself resets the idle
+    counter, so every auto-off was being undone ~13 s later).
   triggers:
   - trigger: state
     entity_id: sensor.baehp_idle
@@ -4533,6 +4431,11 @@
     value_template: '{{ trigger.from_state is not none and trigger.to_state is not
       none and trigger.from_state.state | float(0) >= 120 and trigger.to_state.state
       | float(999) < 30 }}'
+  - alias: Not the TV's own echo (switching the Serif off resets baehp's idle counter)
+    condition: template
+    value_template: '{% set off = state_attr(''automation.tv_off_when_the_pc_is_idle_and_the_lounge_is_empty'',''last_triggered'')
+      %}{{ (now() - states[''media_player.55_the_serif_3''].last_changed).total_seconds()
+      > 60 and (off is none or (now() - off).total_seconds() > 120) }}'
   actions:
   - choose:
     - alias: 'TV is off: turn it on, then pick the PC'
@@ -4556,18 +4459,18 @@
         target:
           entity_id: media_player.55_the_serif_3
         data:
-          source: hdmi1
-    - alias: 'TV is on another input: switch to the PC'
+          source: hdmi2
+    - alias: 'TV is on another input (not the Streamer on hdmi4): switch to the PC'
       conditions:
       - condition: template
         value_template: '{{ state_attr(''media_player.55_the_serif_3'', ''source'')
-          != ''hdmi1'' }}'
+          not in [''hdmi2'', ''hdmi4''] }}'
       sequence:
       - action: media_player.select_source
         target:
           entity_id: media_player.55_the_serif_3
         data:
-          source: hdmi1
+          source: hdmi2
   mode: single
   max_exceeded: silent
 - id: '1792100000001'
@@ -4637,33 +4540,6 @@
       target:
         entity_id: '{{ autos }}'
   mode: restart
-- id: '1792556055199'
-  alias: Nest – save motion clips
-  description: ''
-  triggers:
-  - trigger: event
-    event_type: nest_event
-    event_data:
-      type: camera_motion
-  - trigger: event
-    event_type: nest_event
-    event_data:
-      type: camera_person
-  conditions:
-  - condition: template
-    value_template: '{{ trigger.event.data.attachment is defined }}'
-  actions:
-  - delay: 00:00:05
-  - variables:
-      att: '{{ trigger.event.data.attachment }}'
-      is_video: '{{ att.video is defined }}'
-  - action: shell_command.nest_save_clip
-    data:
-      url: '{{ att.video if is_video else att.image }}'
-      filename: '{{ now().strftime(''%Y-%m-%d'') }}/{{ now().strftime(''%H%M%S'')
-        }}_{{ trigger.event.data.type }}_{{ trigger.event.data.device_id[:6] }}.{{
-        ''mp4'' if is_video else ''jpg'' }}'
-  mode: queued
 - id: mirror_ball_kitchen_art
   alias: 'Mirror ball: kitchen art on with it'
   description: 'While the mirror ball (fan.mirror_ball) is spinning, the kitchen art
@@ -4737,7 +4613,7 @@
       state: 'off'
     then:
     - parallel:
-      - action: notify.mobile_app_pixel_6a
+      - action: notify.mobile_app_pixel_10a
         data:
           title: Someone's at the door
           message: The building entrance is ringing.
@@ -4749,7 +4625,7 @@
             actions:
             - action: COMELIT_OPEN_MAIN
               title: Open main door
-      - action: notify.mobile_app_motorola_razr_50
+      - action: notify.mobile_app_pixel_10a
         data:
           title: Someone's at the door
           message: The building entrance is ringing.
@@ -4787,27 +4663,31 @@
       target:
         entity_id: button.comelit_intercom_elevator
     - parallel:
-      - action: notify.mobile_app_pixel_6a
+      - action: notify.mobile_app_pixel_10a
         data:
           title: Let in
-          message: Main door and elevator unlocked.
+          message: '{{ ''Opening the main door and lift when the ring stops.'' if
+            state_attr(''camera.comelit_intercom_entrance'', ''release_pending'')
+            else ''Main door and elevator unlocked.'' }}'
           data:
             tag: comelit-doorbell
-      - action: notify.mobile_app_motorola_razr_50
+      - action: notify.mobile_app_pixel_10a
         data:
           title: Let in
-          message: Main door and elevator unlocked.
+          message: '{{ ''Opening the main door and lift when the ring stops.'' if
+            state_attr(''camera.comelit_intercom_entrance'', ''release_pending'')
+            else ''Main door and elevator unlocked.'' }}'
           data:
             tag: comelit-doorbell
     else:
     - parallel:
-      - action: notify.mobile_app_pixel_6a
+      - action: notify.mobile_app_pixel_10a
         data:
           title: Door not opened
           message: That ring was more than 3 minutes ago.
           data:
             tag: comelit-doorbell
-      - action: notify.mobile_app_motorola_razr_50
+      - action: notify.mobile_app_pixel_10a
         data:
           title: Door not opened
           message: That ring was more than 3 minutes ago.
@@ -4817,8 +4697,9 @@
   max_exceeded: silent
 - id: comelit_missed_ring_log
   alias: Intercom missed ring log
-  description: Saves a picture of every entrance ring. If nobody lets them in from
-    HA within 3 minutes, counts it as missed.
+  description: Saves a fresh picture of every entrance ring (waits up to 90 s for
+    one taken after the ring; never copies an older still). If nobody lets them in
+    from HA within 3 minutes, counts it as missed.
   triggers:
   - trigger: state
     entity_id: event.comelit_intercom_doorbell_2
@@ -4839,14 +4720,18 @@
   - wait_template: '{% set s = state_attr(''camera.comelit_intercom_entrance'', ''snapshot_at'')
       %}{{ s is not none and as_datetime(s) >= as_datetime(trigger.to_state.state)
       }}'
-    timeout: 00:00:06
+    timeout: 00:01:30
     continue_on_timeout: true
-  - action: camera.snapshot
-    target:
-      entity_id: camera.comelit_intercom_entrance
-    data:
-      filename: '{{ file }}'
-    continue_on_error: true
+  - if:
+    - condition: template
+      value_template: '{{ wait.completed }}'
+    then:
+    - action: camera.snapshot
+      target:
+        entity_id: camera.comelit_intercom_entrance
+      data:
+        filename: '{{ file }}'
+      continue_on_error: true
   - wait_for_trigger:
     - trigger: state
       entity_id: button.comelit_intercom_main_door
@@ -4869,6 +4754,31 @@
       data:
         name: Intercom
         entity_id: event.comelit_intercom_doorbell_2
-        message: ring answered from HA ({{ file.split('/')[-1] }})
+        message: Let in pressed in HA within 3 min of the ring ({{ file.split('/')[-1]
+          }})
   mode: queued
   max: 5
+- id: '1794269477313'
+  alias: Log Pixel 10a Now Playing to Media Curator
+  description: Captures songs identified by Pixel Now Playing (the 10a since 2026-11-18)
+    and appends them to CSV
+  triggers:
+  - trigger: state
+    entity_id: sensor.pixel_10a_last_notification
+  conditions:
+  - condition: template
+    value_template: "{{ state_attr('sensor.pixel_10a_last_notification', 'package')
+      == 'com.google.android.as'\n   and ' by ' in (state_attr('sensor.pixel_10a_last_notification',
+      'android.title') | default('', true)) }}"
+  actions:
+  - action: notify.send_message
+    continue_on_error: true
+    target:
+      entity_id: notify.pixel_now_playing_csv
+    data:
+      message: '"{{ now().isoformat() }}","{{ (state_attr(''sensor.pixel_10a_last_notification'',
+        ''android.title'') | default('''', true)).split('' by '')[0] | replace(''"'',
+        ''""'') }}","{{ (state_attr(''sensor.pixel_10a_last_notification'', ''android.title'')
+        | default('''', true)).split('' by '')[1] | replace(''"'', ''""'') }}","{{
+        states(''device_tracker.pixel_10a'') }}"'
+  mode: queued

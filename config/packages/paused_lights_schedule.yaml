@@ -5,8 +5,8 @@
 # Only lights that are already ON change colour/level. Nothing is switched on or off.
 # If none of a step's lights are on, that step does nothing.
 #   07:00  Day      Santorini on the Hue lights
-#   18:00  Evening  Disturbia 2 on the Hue lights; couch pastel + art pendants 75%
-#                   (the rest of the Club/Gay scene is on/off lights, left alone)
+#   18:00  Evening  Disturbia on the Hue lights; couch warm yellow + art pendants 75%
+#                   (the rest of the evening look is on/off lights, left alone; 2026-11-17)
 #   21:00  Night    the long-blue Night scene (scene.night) on whichever of its lights are on
 # Every day. Skipped while auto-stay (party mode) is on.
 
@@ -99,7 +99,7 @@ automation:
             sequence:
               - action: script.hue_scene_lit_only
                 data:
-                  scene: scene.home_home_disturbia_2
+                  scene: scene.home_home_disturbia
               - if:
                   - condition: state
                     entity_id: light.couch
@@ -109,7 +109,8 @@ automation:
                     target:
                       entity_id: light.couch
                     data:
-                      effect: Pastel colors
+                      hs_color: [53.858, 76.772]
+                      brightness: 150
                     continue_on_error: true
               - if:
                   - condition: state
@@ -136,8 +137,6 @@ automation:
                         - light.hue_play_1
                         - light.hue_play_2
                         - light.hue_play_3
-                        - light.club_accent_chair_lights
-                        - light.couchh
                       data: { xy_color: [0.3595, 0.2743], brightness: 15 }
                     - lights:
                         - light.home_hue_omniglow_striplight_1

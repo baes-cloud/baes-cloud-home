@@ -1,5 +1,11 @@
 all_lights_off_script:
   sequence:
+  - alias: Mirror ball off first, or it forces the kitchen art light back on (added
+      by Claude 2026-11-13)
+    action: fan.turn_off
+    target:
+      entity_id: fan.mirror_ball
+    continue_on_error: true
   - action: light.turn_off
     metadata: {}
     target:
@@ -40,105 +46,57 @@ decrease_club_brightness_on_lights_only:
     action: light.turn_on
   description: ''
 play_disco:
-  sequence:
-  - action: media_player.play_media
-    metadata: {}
-    target:
-      entity_id: media_player.club
-    data:
-      media:
-        media_content_id: FV:2/7
-        media_content_type: favorite_item_id
-        metadata:
-          title: 'Defected ITH 2017 Glitterbox - A Disco Hi #2'
-          thumbnail: http://<device-ip>:1400/getaa?u=x-file-cifs://<device-ip>/music/Defected/Defected%202017%20Glitterbox%20-%20A%20Disco%20Hi%202.mp3&v=1
-          media_class: track
-          children_media_class:
-          navigateIds:
-          - {}
-          - media_content_type: favorites
-            media_content_id: ''
-          - media_content_type: favorites_folder
-            media_content_id: object.item.audioItem.musicTrack
-          browse_entity_id: media_player.club
   alias: Play Disco
-  description: ''
+  description: Glitterbox A Disco Hi, Mix 2. Local NAS file (swapped from a dead favourite
+    2026-11-07).
+  sequence:
+  - action: media_player.play_media
+    target:
+      entity_id: media_player.club
+    data:
+      media_content_id: x-file-cifs://<nas-ip>/music/Albums/Defected/2017%20-%20Glitterbox%20-%20A%20Disco%20Hi/2-01%20-%20Defected%20-%20Glitterbox%20-%20A%20Disco%20Hi%20(Mix%202).mp3
+      media_content_type: music
+  - alias: Mirror ball spins with it (added by Claude 2026-11-13)
+    action: fan.turn_on
+    target:
+      entity_id: fan.mirror_ball
+    continue_on_error: true
+  mode: single
 play_house:
-  sequence:
-  - action: media_player.play_media
-    metadata: {}
-    target:
-      entity_id: media_player.club
-    data:
-      media:
-        media_content_id: FV:2/10
-        media_content_type: favorite_item_id
-        metadata:
-          title: IBIZA Best Vocal House Mix By Dj Tango JUNE 2019 Vol.2
-          thumbnail: https://i.ytimg.com/vi/rFTQ3IIL05Q/hqdefault.jpg?sqp=-oaymwEWCMACELQBIAQqCghQEJADGFogjgJIWg&rs=AMzJL3mFTyVUslQOCh22Frloq25q6qXVWw
-          media_class: track
-          children_media_class:
-          navigateIds:
-          - {}
-          - media_content_type: favorites
-            media_content_id: ''
-          - media_content_type: favorites_folder
-            media_content_id: object.item.audioItem.musicTrack
-          browse_entity_id: media_player.club
   alias: Play House
-  description: ''
+  description: Dj Tango Ibiza vocal house mix. Local NAS file (swapped from a dead
+    favourite 2026-11-07).
+  sequence:
+  - action: media_player.play_media
+    target:
+      entity_id: media_player.club
+    data:
+      media_content_id: x-file-cifs://<nas-ip>/music/.sonos/2019-06-00%20-%20Electronic%20Music%20Festival%20TV%20%40%20Ibiza%20Best%20Vocal%20House%20Mix%20By%20Dj%20Tango%20Vol.2.m4a
+      media_content_type: music
+  mode: single
 play_mos:
-  sequence:
-  - action: media_player.play_media
-    metadata: {}
-    target:
-      entity_id: media_player.club
-    data:
-      media:
-        media_content_id: S://<device-ip>/music/Various%20artists%20-%20The%20Annual%202026,%20%20Disc%201
-        media_content_type: directory
-        metadata:
-          title: Various artists - The Annual 2026,  Disc 1
-          thumbnail:
-          media_class: directory
-          children_media_class:
-          navigateIds:
-          - {}
-          - media_content_type: library
-            media_content_id: ''
-          - media_content_type: directory
-            media_content_id: 'S:'
-          - media_content_type: directory
-            media_content_id: S://<device-ip>/music
-          browse_entity_id: media_player.club
   alias: Play MOS
-  description: ''
-play_dj:
+  description: Sonos playlist "The Annual 2026 (AU) Disc 1" of local NAS files (built
+    2026-11-07).
   sequence:
   - action: media_player.play_media
-    metadata: {}
     target:
       entity_id: media_player.club
     data:
-      media:
-        media_content_id: S://<device-ip>/music/argonaught
-        media_content_type: directory
-        metadata:
-          title: argonaught
-          thumbnail:
-          media_class: directory
-          children_media_class:
-          navigateIds:
-          - {}
-          - media_content_type: library
-            media_content_id: ''
-          - media_content_type: directory
-            media_content_id: 'S:'
-          - media_content_type: directory
-            media_content_id: S://<device-ip>/music
-          browse_entity_id: media_player.club
+      media_content_id: The Annual 2026 (AU) Disc 1
+      media_content_type: playlist
+  mode: single
+play_dj:
   alias: Play DJ
-  description: ''
+  description: Sonos playlist "Argonaut Sets" of local NAS files (built 2026-11-07).
+  sequence:
+  - action: media_player.play_media
+    target:
+      entity_id: media_player.club
+    data:
+      media_content_id: Argonaut Sets
+      media_content_type: playlist
+  mode: single
 group_sonos:
   alias: Ungroup
   description: Same as script.ungroup_sonos - unjoin every speaker grouped with the
@@ -160,53 +118,39 @@ ungroup_sonos:
       entity_id: '{{ members }}'
   mode: single
 play_pdm:
-  sequence:
-  - action: media_player.play_media
-    metadata: {}
-    target:
-      entity_id: media_player.club
-    data:
-      media:
-        media_content_id: FV:2/9
-        media_content_type: favorite_item_id
-        metadata:
-          title: Welcome to Paradise (DJ-Set)
-          thumbnail: https://i.ytimg.com/vi/lqcosHDoGRs/hq720.jpg?sqp=-oaymwEXCKAGEMIDIAQqCwjVARCqCBh4INgESFo&rs=AMzJL3kmacLMUOEd33jakjbs0DDNeeiP7A
-          media_class: track
-          children_media_class:
-          navigateIds:
-          - {}
-          - media_content_type: favorites
-            media_content_id: ''
-          - media_content_type: favorites_folder
-            media_content_id: object.item.audioItem.musicTrack
-          browse_entity_id: media_player.club
   alias: Play PDM
-  description: ''
-play_dfp:
+  description: PDM Welcome to Paradise. Local NAS file (swapped from a dead favourite
+    2026-11-07).
   sequence:
   - action: media_player.play_media
-    metadata: {}
     target:
       entity_id: media_player.club
     data:
-      media:
-        media_content_id: FV:2/26
-        media_content_type: favorite_item_id
-        metadata:
-          title: Dimitri From Paris Boiler Room London DJ Set
-          thumbnail: https://i1.sndcdn.com/artworks-000146862962-qbs58h-original.jpg
-          media_class: track
-          children_media_class:
-          navigateIds:
-          - {}
-          - media_content_type: favorites
-            media_content_id: ''
-          - media_content_type: favorites_folder
-            media_content_id: object.item.audioItem.musicTrack
-          browse_entity_id: media_player.club
+      media_content_id: x-file-cifs://<nas-ip>/music/.sonos/Purple%20Disco%20Machine%20%40%20Welcome%20to%20Paradise%20(DJ-Set).m4a
+      media_content_type: music
+  - alias: Mirror ball spins with it (added by Claude 2026-11-13)
+    action: fan.turn_on
+    target:
+      entity_id: fan.mirror_ball
+    continue_on_error: true
+  mode: single
+play_dfp:
   alias: Play DFP
-  description: ''
+  description: DFP Boiler Room London. Local NAS file (swapped from a dead favourite
+    2026-11-07).
+  sequence:
+  - action: media_player.play_media
+    target:
+      entity_id: media_player.club
+    data:
+      media_content_id: x-file-cifs://<nas-ip>/music/Sets/Dimitri%20From%20Paris/2016-00-00%20-%20Dimitri%20From%20Paris%20%40%20Boiler%20Room%20London.mp3
+      media_content_type: music
+  - alias: Mirror ball spins with it (added by Claude 2026-11-13)
+    action: fan.turn_on
+    target:
+      entity_id: fan.mirror_ball
+    continue_on_error: true
+  mode: single
 bae_2:
   sequence:
   - action: scene.turn_on
@@ -257,7 +201,6 @@ day:
     target:
       entity_id: light.couch
     data:
-      color_temp_kelvin: 5431
       brightness_pct: 100
   - action: light.turn_on
     metadata: {}
@@ -312,31 +255,17 @@ gay:
   alias: Gay
   description: ''
 play_trap:
+  alias: Play Trap
+  description: Sonos playlist "Maximum Bass Turbo (AU)" of local NAS files (built
+    2026-11-07).
   sequence:
   - action: media_player.play_media
-    metadata: {}
     target:
       entity_id: media_player.club
     data:
-      media:
-        media_content_id: S://<device-ip>/music/MoS%20(2012)%20MaXimum%20Bass%20Turbo%20%5bAU%5d%5bFLAC%5d
-        media_content_type: directory
-        metadata:
-          title: MoS (2012) MaXimum Bass Turbo [AU][FLAC]
-          thumbnail:
-          media_class: directory
-          children_media_class:
-          navigateIds:
-          - {}
-          - media_content_type: library
-            media_content_id: ''
-          - media_content_type: directory
-            media_content_id: 'S:'
-          - media_content_type: directory
-            media_content_id: S://<device-ip>/music
-          browse_entity_id: media_player.club
-  alias: Play Trap
-  description: ''
+      media_content_id: Maximum Bass Turbo (AU)
+      media_content_type: playlist
+  mode: single
 volume_down:
   sequence:
   - action: media_player.volume_down
@@ -577,7 +506,7 @@ notify_bae:
   sequence:
   - variables:
       default_targets:
-      - notify.mobile_app_motorola_razr_50
+      - notify.mobile_app_pixel_10a
       send_to: '{% set t = targets if targets is defined and targets else default_targets
         %} {{ [t] if t is string else t | list }}'
       extra: '{{ data if data is defined and data is mapping else {} }}'
@@ -778,7 +707,7 @@ sl68_followup_clean:
             if still_out else [] }}'
 tv_ambient_show:
   alias: TV ambient screen
-  description: Turns the Serif on (if needed), switches to HDMI1 (baehp) and pins
+  description: Turns the Serif on (if needed), switches to HDMI2 (baehp) and pins
     the ambient screen. It stays up until input_boolean.tv_ambient is turned off (Astrion
     BACK). Source in ~/Documents/claude/tv-pc.
   icon: mdi:television-ambient-light
@@ -807,10 +736,10 @@ tv_ambient_show:
     target:
       entity_id: media_player.55_the_serif_3
     data:
-      source: hdmi1
+      source: hdmi2
 tv_remote_guide_show:
   alias: TV remote guide · show
-  description: Puts the full-screen remote guide on the Serif (baehp HDMI1 kiosk,
+  description: Puts the full-screen remote guide on the Serif (baehp HDMI2 kiosk,
     Bæovision /guide). Remembers what the TV was doing so script.tv_remote_guide_hide
     can put it back. Called by the Astrion remotes when their guide opens (hold Menu).
     The Samsung's reported input can go stale (SmartThings), so 'was the Google TV
@@ -853,7 +782,7 @@ tv_remote_guide_show:
     target:
       entity_id: media_player.55_the_serif_3
     data:
-      source: hdmi1
+      source: hdmi2
 tv_remote_guide_hide:
   alias: TV remote guide · hide
   description: Takes the remote guide off the Serif and puts the TV back as script.tv_remote_guide_show
@@ -888,7 +817,7 @@ tv_remote_guide_hide:
           command: input keyevent KEYCODE_WAKEUP; sleep 1; cmd hdmi_control onetouchplay
     - conditions:
       - condition: template
-        value_template: '{{ back not in ['''', ''unknown'', ''hdmi1''] }}'
+        value_template: '{{ back not in ['''', ''unknown'', ''hdmi2''] }}'
       sequence:
       - action: media_player.select_source
         target:
@@ -912,3 +841,142 @@ intercom_let_in:
   - action: button.press
     target:
       entity_id: button.comelit_intercom_main_door
+tv_bbc_news:
+  alias: TV BBC News
+  description: 'Red key on the BæoRemote: Serif on, Samsung TV Plus (reopens on the
+    last channel, BBC News).'
+  mode: single
+  sequence:
+  - if:
+    - condition: state
+      entity_id: media_player.55_the_serif_3
+      state: 'off'
+    then:
+    - action: media_player.turn_on
+      target:
+        entity_id: media_player.55_the_serif_3
+    - wait_template: '{{ is_state("media_player.the_serif_qa55ls01dawxxy", "on") }}'
+      timeout: 00:00:20
+      continue_on_timeout: true
+    - delay: 00:00:03
+  - action: media_player.select_source
+    target:
+      entity_id: media_player.the_serif_qa55ls01dawxxy
+    data:
+      source: TV
+blinds_travel:
+  alias: Blinds travel
+  description: Raises or lowers the club blinds, then stays on for their travel time
+    so blinds_hold knows they are moving (cover.blinds never reports opening/closing).
+  mode: single
+  fields:
+    direction:
+      description: up or down
+      example: up
+  sequence:
+  - if:
+    - condition: template
+      value_template: '{{ direction == "up" }}'
+    then:
+    - action: script.open_blinds
+    else:
+    - action: script.close_blinds
+  - delay: 00:00:30
+blinds_hold:
+  alias: Blinds hold key
+  description: 'BæoRemote hold PAGE_UP/PAGE_DOWN: starts the blinds moving, or stops
+    them where they are if they are already moving.'
+  mode: single
+  fields:
+    direction:
+      description: up or down
+      example: down
+  sequence:
+  - if:
+    - condition: state
+      entity_id: script.blinds_travel
+      state: 'on'
+    then:
+    - action: cover.stop_cover
+      target:
+        entity_id: cover.blinds
+    - action: script.turn_off
+      target:
+        entity_id: script.blinds_travel
+    else:
+    - action: script.turn_on
+      target:
+        entity_id: script.blinds_travel
+      data:
+        variables:
+          direction: '{{ direction }}'
+tv_open_app:
+  alias: TV open app
+  description: 'BæoRemote colour keys and TV tiles: wake the Streamer, open an app,
+    switch the TV to it, and press OK on the app''s profile picker (iview, Plex).
+    Lives in HA because the Streamer''s adb shell is cut off after ~9 s and Plex''s
+    picker takes ~6 s to appear.'
+  mode: restart
+  icon: mdi:television-play
+  fields:
+    package:
+      description: Android package
+      example: au.net.abc.iview
+      required: true
+      selector:
+        text: {}
+    picker:
+      description: Regex for the profile picker activity; empty = none
+      example: ProfileSwitchActivity|AbcProfilesActivity
+      selector:
+        text: {}
+    switch_tv:
+      description: Switch the Serif to the Streamer (One Touch Play)
+      default: true
+      selector:
+        boolean: {}
+  variables:
+    adb: media_player.club_android_tv_10_0_0_248_club_tv
+    picker_re: '{{ picker | default('''') }}'
+    do_switch: '{{ switch_tv | default(true) }}'
+  sequence:
+  - action: androidtv.adb_command
+    target:
+      entity_id: '{{ adb }}'
+    data:
+      command: 'dumpsys power 2>/dev/null | grep -q ''mWakefulness=Awake'' || { input
+        keyevent KEYCODE_WAKEUP; sleep 1.5; }; if dumpsys activity recents 2>/dev/null
+        | grep -m1 ''Recent #0'' | grep -q {{ package }}; then echo front; else monkey
+        -p {{ package }} -c android.intent.category.LEANBACK_LAUNCHER 1 >/dev/null
+        2>&1; echo launched; fi'
+  - variables:
+      launched: '{{ ''launched'' in (state_attr(adb, ''adb_response'') or '''') }}'
+  - if:
+    - condition: template
+      value_template: '{{ do_switch }}'
+    then:
+    - action: androidtv.adb_command
+      target:
+        entity_id: '{{ adb }}'
+      data:
+        command: cmd hdmi_control onetouchplay
+      continue_on_error: true
+  - if:
+    - condition: template
+      value_template: '{{ launched and picker_re != '''' }}'
+    then:
+    - repeat:
+        sequence:
+        - delay:
+            milliseconds: 500
+        - action: androidtv.adb_command
+          target:
+            entity_id: '{{ adb }}'
+          data:
+            command: if dumpsys activity activities 2>/dev/null | grep -m1 topResumedActivity
+              | grep -qE '{{ picker_re }}'; then sleep 0.8; input keyevent KEYCODE_DPAD_CENTER;
+              echo picked; else echo waiting; fi
+        until:
+        - condition: template
+          value_template: '{{ ''picked'' in (state_attr(adb, ''adb_response'') or
+            '''') or repeat.index >= 24 }}'

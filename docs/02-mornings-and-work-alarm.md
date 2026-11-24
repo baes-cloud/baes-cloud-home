@@ -198,9 +198,9 @@ Sonos follows the TV.
 ```yaml
 - id: '1785400000017'
   alias: 'RMM: Weekday morning routine'
-  description: 'First bed-exit on a weekday morning while home: fade lights to Santorini,
-    Serif on to HDMI4, Google TV Streamer opens the ABC News live stream. Created
-    by Claude 2026-07-25.'
+  description: 'First bed-exit on a weekday morning while home: fade lights to Santorini.
+    (The TV + ABC News live stream step was removed 2026-11-21 at Bae''s request.)
+    Created by Claude 2026-07-25.'
   triggers:
   - trigger: state
     entity_id: binary_sensor.rmm_default_bed_occupancy
@@ -232,28 +232,6 @@ Sonos follows the TV.
       entity_id: scene.home_home_santorini
     data:
       transition: 20
-  - action: media_player.turn_on
-    target:
-      entity_id: media_player.55_the_serif_3
-    continue_on_error: true
-  - delay: 00:00:06
-  - action: media_player.select_source
-    target:
-      entity_id: media_player.55_the_serif_3
-    data:
-      source: hdmi4
-    continue_on_error: true
-  - action: remote.turn_on
-    target:
-      entity_id: remote.the_club_tvv
-    continue_on_error: true
-  - delay: 00:00:10
-  - action: androidtv.adb_command
-    target:
-      entity_id: media_player.club_android_tv_10_0_0_248_club_tv
-    data:
-      command: am start -a android.intent.action.VIEW -d "https://www.youtube.com/@abcnewsaustralia/live"
-    continue_on_error: true
   mode: single
 ```
 
@@ -265,8 +243,9 @@ Sonos follows the TV.
 - id: '1785400000018'
   alias: 'RMM: Morning calendar briefing'
   description: 'First bathroom visit on a weekday morning: the bathroom Sonos reads
-    today''s calendar, then joins the Club (TV audio / news). Created by Claude 2026-07-25.
-    Skipped entirely if media_player.bathroom_sonos is unavailable.'
+    today''s calendar, then joins the Club (TV audio). News digest removed 2026-11-21.
+    Created by Claude 2026-07-25. Skipped entirely if media_player.bathroom_sonos
+    is unavailable.'
   triggers:
   - trigger: state
     entity_id: binary_sensor.rmm_default_bathroom_occupancy
@@ -321,36 +300,6 @@ Sonos follows the TV.
   - wait_template: '{{ states(''media_player.bathroom_sonos'') != ''playing'' }}'
     timeout: 00:01:30
     continue_on_timeout: true
-  - choose:
-    - conditions:
-      - condition: template
-        value_template: "{% set g = state_attr('sensor.daily_news','generated_at')
-          %} {{ state_attr('sensor.daily_news','tts_chunks') is iterable\n   and state_attr('sensor.daily_news','tts_chunks')
-          | count > 0\n   and g is not none\n   and (now() - (g | as_datetime)).total_seconds()
-          < 86400 }}"
-      sequence:
-      - repeat:
-          for_each: '{{ state_attr(''sensor.daily_news'',''tts_chunks'') }}'
-          sequence:
-          - action: tts.speak
-            target:
-              entity_id: tts.home_assistant_cloud
-            data:
-              media_player_entity_id: media_player.bathroom_sonos
-              cache: false
-              message: '{{ repeat.item }}'
-          - wait_template: '{{ states(''media_player.bathroom_sonos'') != ''playing''
-              }}'
-            timeout: 00:01:30
-            continue_on_timeout: true
-    default:
-    - action: tts.speak
-      target:
-        entity_id: tts.home_assistant_cloud
-      data:
-        media_player_entity_id: media_player.bathroom_sonos
-        cache: false
-        message: News digest unavailable this morning.
   - wait_template: '{{ states(''media_player.bathroom_sonos'') != ''playing'' }}'
     timeout: 00:06:00
     continue_on_timeout: true

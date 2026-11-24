@@ -1,4 +1,10 @@
 substitutions:
+  player: "media_player.club"
+  room_name: "CLUB"
+  group_vol: "true"
+  has_tv: "true"
+  pick_more: "true"
+  has_home: "true"
   night_idle: 180s              # no interaction for this long -> faded clock
   night_clock_color: "0x9A5F2C" # warm amber: no blue light while sleeping
   night_date_color: "0x6E4526"
@@ -51,18 +57,18 @@ api:
         - script.execute: update_alarm
         - script.execute: alarm_preview_timeout
   encryption:
-    key: !secret api_encryption_key
+    key: !secret rotary_api_key
 
 ota:
   - platform: esphome
-    password: !secret ota_password
+    password: !secret ota_password rotary_ota_password
 
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
   ap:
     ssid: "Rotary-Display-1"
-    password: !secret ap_password
+    password: !secret rotary_ap_password
 
   use_address: <device-ip>
 captive_portal:
@@ -127,59 +133,46 @@ light:
 # --------------------------------------------------------
 
 # --------------------------------------------------------
-# BÆO REMOTE (media-only UI; turntable retired 2026-09-27)
-#   Face 1 "Nocturne": smoked glass over a blurred cover, lit volume ring.
-#   Swipe left/right toggles faces; hold the knob for Playlists (+ ungroup).
-# current_mode: 0 now-playing · 6 playlists · 9 inert
-# idle -> night face: dim amber Face A on near-black (grp_night, top layer)
+# BÆO REMOTE (media-only, Nocturne face). One source, two remotes:
+#   rotary-display-1 drives Club (volume moves every grouped room),
+#   rotary-display-2 drives the Bedroom only. See tt/assemble.py.
+# Knob: turn = volume, hold + turn = scrub, press = play/pause,
+#   double = next, triple = previous, hold = stop music on every speaker.
+# current_mode: 0 now-playing · 5 pick to play · 9 inert (night clock / alarm popup)
+#   has_home (coffee-table knob): 20 menu · 21 Climate · 22 Blinds · 23 Lights · 24 Scenes.
+#   There, hold opens the menu instead of stopping all music, swipes move between
+#   pages, and any page goes back to Media after "Return to Media after".
+# idle -> dim face while playing, else the night clock (grp_night, top layer)
 # --------------------------------------------------------
 http_request:
   verify_ssl: false
   timeout: 2s
 
 image:
-  - file: "tt/pl_disc_140.png"
-    id: pl_disc_140
-    type: RGB565
-    transparency: alpha_channel
   - file: "tt/art_ph.png"
     id: art_ph
     type: RGB565
-  - file: "icon_disco_w.png"
-    id: icon_disco
+  # pick-to-play LP labels (order = script.rotary_play pick numbers)
+  - file: "tt/covers/pdm_london.png"
+    id: cv_pdm_london
     type: RGB565
     transparency: alpha_channel
-    resize: 38x44
-  - file: "icon_house_w.png"
-    id: icon_house
+  - file: "tt/covers/pdm_paradise.png"
+    id: cv_pdm_paradise
     type: RGB565
     transparency: alpha_channel
-    resize: 50x40
-  - file: "icon_mos_w.png"
-    id: icon_mos
+  - file: "tt/covers/dfp_love.png"
+    id: cv_dfp_love
     type: RGB565
     transparency: alpha_channel
-    resize: 46x42
-  - file: "icon_pdm.png"
-    id: icon_pdm
+  - file: "tt/covers/dfp_boiler.png"
+    id: cv_dfp_boiler
     type: RGB565
     transparency: alpha_channel
-    resize: 48x48
-  - file: "icon_dfp_w.png"
-    id: icon_dfp
+  - file: "tt/covers/gayfm.png"
+    id: cv_gayfm
     type: RGB565
     transparency: alpha_channel
-    resize: 44x44
-  - file: "icon_fav_w.png"
-    id: icon_fav
-    type: RGB565
-    transparency: alpha_channel
-    resize: 46x40
-  - file: "icon_alb_w.png"
-    id: icon_alb
-    type: RGB565
-    transparency: alpha_channel
-    resize: 52x40
 
 online_image:
   - id: album_blur
@@ -249,9 +242,15 @@ globals:
   - id: last_title
     type: std::string
     initial_value: '""'
-  - id: art_key                # "cache=" part of entity_picture last fetched
+  # Whole entity_picture last fetched, token included. Keyed on the full URL because
+  # Home Assistant issues a new token at every restart: keyed on "cache=" alone, the
+  # knob kept retrying the old URL, and five refused fetches get its IP banned by HA.
+  - id: art_key
     type: std::string
     initial_value: '""'
+  - id: art_tries              # retries spent on the current artwork URL (max 2)
+    type: int
+    initial_value: '0'
   - id: art_ok                 # last album-art download succeeded
     type: bool
     initial_value: 'true'
@@ -279,32 +278,50 @@ globals:
   - id: turned_while_held
     type: bool
     initial_value: 'false'
-  - id: pl_sel
-    type: int
-    initial_value: '0'
-  - id: pl_list                # Playlists page section: 0 mixes · 1 Sonos favourites · 2 MA albums
-    type: int
-    initial_value: '0'
-  - id: fav_idx
-    type: int
-    initial_value: '0'
-  - id: alb_idx
-    type: int
-    initial_value: '0'
-  - id: fav_v                  # names from sensor.rotary_lists (HA package rotary_lists.yaml)
-    type: std::vector<std::string>
-  - id: alb_v
-    type: std::vector<std::string>
-  - id: art_v
-    type: std::vector<std::string>
-  - id: sp_mask                # bit i = room i in Club's group (bit 0 = Club)
-    type: int
-    initial_value: '1'
-  - id: ug_list                # rooms being unjoined (comma list)
+  - id: vol_sent               # last level sent to HA (group volume moves by the difference)
+    type: float
+    initial_value: '0.3'
+  - id: room_txt               # "CLUB" / "CLUB + LIVING ROOM" / "CLUB + 3 ROOMS"
     type: std::string
-    initial_value: '""'
-  - id: ug_n
+    initial_value: '"${room_name}"'
+  - id: toast_ms               # artist line shows a toast until then
+    type: uint32_t
+    initial_value: '0'
+  - id: hold_hint
+    type: bool
+    initial_value: 'false'
+  - id: pick_sel               # pick-to-play: which LP is in the middle
     type: int
+    initial_value: '0'
+  - id: pick_open_ms           # taps right after opening don't count as a pick
+    type: uint32_t
+    initial_value: '0'
+  - id: user_wake              # this wake came from a hand on the knob / glass
+    type: bool
+    initial_value: 'false'
+  - id: wake_by_user
+    type: bool
+    initial_value: 'false'
+  - id: pick_started_ms        # a pick was just sent: give Sonos time to start it
+    type: uint32_t
+    initial_value: '0'
+  - id: paused_ms              # when the player went to paused (0 = not paused)
+    type: uint32_t
+    initial_value: '0'
+  - id: pick_ok                # picker allowed on a touch / press (set by pick_check)
+    type: bool
+    initial_value: 'false'
+  - id: pick_turn_ok           # ...and on a knob turn (never on TV: the turn stays volume)
+    type: bool
+    initial_value: 'false'
+  - id: tx0                    # touch start / latest x, for swipes on the picker
+    type: int
+    initial_value: '0'
+  - id: tx1
+    type: int
+    initial_value: '0'
+  - id: swipe_ms               # a swipe just happened: the tap under it doesn't count
+    type: uint32_t
     initial_value: '0'
   - id: tv_title               # what's on the TV (borrowed from Plex / the Streamer)
     type: std::string
@@ -315,30 +332,79 @@ globals:
   - id: tv_pic
     type: std::string
     initial_value: '""'
-  - id: art_retry_key
-    type: std::string
-    initial_value: '""'
-  - id: art_retries
-    type: int
-    initial_value: '0'
-  - id: tx0
-    type: int
-    initial_value: '0'
-  - id: ty0
-    type: int
-    initial_value: '0'
-  - id: tx1
+  # --- home pages (has_home)
+  - id: ty0                    # touch start / latest y, to tell swipes from taps
     type: int
     initial_value: '0'
   - id: ty1
     type: int
     initial_value: '0'
-  - id: swipe                  # 0 none · 1 left · 2 right · 3 up · 4 down
+  - id: hm_sel                 # menu: highlighted page 0 Media · 1 Climate · 2 Blinds · 3 Lights
+    type: int
+    initial_value: '1'
+  - id: htp                    # scratch for home_tap
     type: int
     initial_value: '0'
-  - id: swipe_ms
+  - id: ac_mode                # climate.aircon state (off / cool / heat / heat_cool / dry / fan_only)
+    type: std::string
+    initial_value: '"off"'
+  - id: ac_last_mode           # what "on" means
+    type: std::string
+    initial_value: '"cool"'
+  - id: ac_fan
+    type: std::string
+    initial_value: '"auto"'
+  - id: ac_set                 # setpoint shown (local while turning)
+    type: int
+    initial_value: '23'
+  - id: ac_room
+    type: float
+    initial_value: 'NAN'
+  - id: ac_touched_ms
     type: uint32_t
     initial_value: '0'
+  - id: bl_sel                 # 0 Sofa (cover.blinds) · 1 Sheer
+    type: int
+    initial_value: '0'
+  - id: bl_pos0                # % open, as the motor reports it (-1 unknown)
+    type: int
+    initial_value: '-1'
+  - id: bl_pos1
+    type: int
+    initial_value: '-1'
+  - id: bl_tgt0                # % open asked for (-1: follow the motor)
+    type: int
+    initial_value: '-1'
+  - id: bl_tgt1
+    type: int
+    initial_value: '-1'
+  - id: bl_dir0                # +1 opening · -1 closing · 0 still (physical, after inversion)
+    type: int
+    initial_value: '0'
+  - id: bl_dir1
+    type: int
+    initial_value: '0'
+  - id: bl_touched_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: li_on
+    type: bool
+    initial_value: 'false'
+  - id: li_bri                 # 0..100
+    type: int
+    initial_value: '0'
+  - id: li_acc                 # detents not yet sent (each = 10%)
+    type: int
+    initial_value: '0'
+  - id: li_touched_ms
+    type: uint32_t
+    initial_value: '0'
+  - id: li_scene               # last scene set from the knob (-1 none)
+    type: int
+    initial_value: '-1'
+  - id: sc_idx                 # Scenes carousel position
+    type: int
+    initial_value: '2'
 
 script:
   # ══ WORK ALARM POPUP ═══════════════════════════════════════════════════════
@@ -519,6 +585,7 @@ script:
           then:
             - script.execute: wake_from_night
           else:
+            - lambda: 'id(user_wake) = false;'
             - script.execute: apply_awake_brightness
       - delay: ${night_idle}
       - if:
@@ -530,7 +597,25 @@ script:
           else:
             - if:
                 condition: {lambda: 'return id(alarm_state) != 1;'}
-                then: [{script.execute: enter_night}]
+                then:
+                  # music playing: keep the now-playing face, just dim it
+                  - if:
+                      condition: {lambda: 'return id(media_playing);'}
+                      then: [{script.execute: dim_while_playing}]
+                      else: [{script.execute: enter_night}]
+
+  # Day: 40% backlight. 22:00-07:00: the "Night Brightness" slider.
+  - id: dim_while_playing
+    then:
+      - if:
+          condition: {lambda: 'return !id(night_active) && id(current_mode) == 0;'}
+          then:
+            - light.control:
+                id: display_backlight
+                brightness: !lambda |-
+                  auto t = id(ha_time).now();
+                  bool late = t.is_valid() && (t.hour >= 22 || t.hour < 7);
+                  return late ? id(night_brightness).state / 100.0f : 0.4f;
 
   - id: apply_awake_brightness
     then:
@@ -551,14 +636,21 @@ script:
                 id(current_mode) = 9;
             - script.execute: update_night_clock
             - lvgl.widget.show: grp_night
+            # the "Night Brightness" slider is for 22:00-07:00; by day the idle
+            # clock stays readable (never below 40%)
             - light.control:
                 id: display_backlight
-                brightness: !lambda 'return id(night_brightness).state / 100.0f;'
+                brightness: !lambda |-
+                  auto t = id(ha_time).now();
+                  bool late = t.is_valid() && (t.hour >= 22 || t.hour < 7);
+                  float nb = id(night_brightness).state / 100.0f;
+                  return late ? nb : (nb > 0.4f ? nb : 0.4f);
 
   - id: wake_from_night
     mode: restart
     then:
-      - lambda: 'id(night_active) = false;'
+      - lambda: 'id(night_active) = false; id(wake_by_user) = id(user_wake); id(user_wake) = false;'
+      - script.execute: pick_check
       - light.control:
           id: display_backlight
           brightness: !lambda 'return id(media_is_tv) ? 0.5f : 1.0f;'
@@ -568,7 +660,11 @@ script:
       - if:
           condition: {lambda: 'return id(alarm_popup_up);'}
           then: [{lambda: 'id(current_mode) = 9;'}]
-          else: [{script.execute: switch_to_now}]
+          else:
+            - if:
+                condition: {lambda: 'return id(wake_by_user) && id(pick_turn_ok);'}
+                then: [{script.execute: open_picker}]
+                else: [{script.execute: switch_to_now}]
 
   - id: update_night_clock
     then:
@@ -604,7 +700,7 @@ script:
             else { float u = (t - m) / (1 - m); for (int i = 0; i < 3; i++) o[i] = c1[i] + (c2[i] - c1[i]) * u; }
           };
           const float RF = 215.0f;                                   // face radius; bezel beyond
-          const float n0[3] = {0x0E, 0x0A, 0x08}, n1[3] = {0x07, 0x05, 0x04}, n2[3] = {0x03, 0x02, 0x02};   // night
+          const float n0[3] = {0x16, 0x1A, 0x1C}, n1[3] = {0x0C, 0x0E, 0x10}, n2[3] = {0x05, 0x06, 0x07};   // night (Sea glass graphite)
           const float b0[3] = {0x2A, 0x2A, 0x2E}, b2[3] = {0x0B, 0x0B, 0x0C};                               // bezel
           lv_obj_t *cvs[1] = {(lv_obj_t *) id(nt_cv)};
           for (int k = 0; k < 1; k++) {
@@ -733,6 +829,16 @@ script:
   - id: set_face
     then:
       - lambda: 'lv_obj_remove_flag((lv_obj_t *) id(grp_noc), LV_OBJ_FLAG_HIDDEN);'
+      # coffee-table knob: the ring becomes a speedometer from by the B of BÆOSOUND to by
+      # the D (-140°..140° from the top), with the page dots in its gap
+      - lambda: |-
+          if (!${has_home}) return;
+          for (lv_obj_t *o : {(lv_obj_t *) id(noc_ring), (lv_obj_t *) id(noc_glow), (lv_obj_t *) id(noc_prog)}) {
+            lv_arc_set_rotation(o, 130);
+            lv_arc_set_bg_angles(o, 0, 280);
+          }
+          for (lv_obj_t *o : {(lv_obj_t *) id(hd_0), (lv_obj_t *) id(hd_1), (lv_obj_t *) id(hd_2), (lv_obj_t *) id(hd_3)})
+            lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
       - script.execute: update_np
       - script.execute: update_clock
 
@@ -767,64 +873,540 @@ script:
 
   - id: switch_to_now
     then:
-      - script.stop: page_timeout
-      - lambda: 'id(current_mode) = 0;'
-      - lvgl.widget.hide: grp_pl
+      - script.stop: pick_timeout
+      - script.execute: home_leave
+      - lambda: |-
+          id(current_mode) = 0;
+          lv_obj_add_flag((lv_obj_t *) id(pk_grp), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_remove_flag((lv_obj_t *) id(noc_title), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_remove_flag((lv_obj_t *) id(noc_artist), LV_OBJ_FLAG_HIDDEN);
       - script.execute: update_np
       - script.execute: update_clock
 
-  - id: open_playlists
+  # ══ PICK TO PLAY ══════════════════════════════════════════════════════════
+  # Nothing playing + a hand on the knob or glass: little LPs to choose from.
+  # Turn = browse, press or tap the middle one = play, hold = back.
+  # When the picker may open. Club (pick_more): stopped, paused for over a
+  # minute, or on the TV input. Bedroom: whenever nothing is playing.
+  - id: pick_check
     then:
-      - lambda: 'id(current_mode) = 6; id(pl_list) = 0;'
-      - script.execute: pl_render
-      - lvgl.widget.show: grp_pl
-      - script.execute: page_timeout
+      - lambda: |-
+          bool paused = id(media_state).state == "paused", tv = id(media_is_tv);
+          if (${pick_more}) {
+            bool long_pause = paused && id(paused_ms) != 0 && millis() - id(paused_ms) > 60000;
+            id(pick_ok) = (!id(media_playing) && !tv && !paused) || long_pause || tv;
+            id(pick_turn_ok) = id(pick_ok) && !tv;
+          } else {
+            id(pick_ok) = !id(media_playing) && !tv;
+            id(pick_turn_ok) = id(pick_ok);
+          }
+          // a pick is still starting (streams can take a few seconds): don't reopen
+          if (id(pick_started_ms) != 0 && millis() - id(pick_started_ms) < 15000 && !id(media_playing))
+            id(pick_ok) = id(pick_turn_ok) = false;
 
-  # the Playlists page closes itself when left alone
-  - id: page_timeout
+  - id: open_picker
+    then:
+      - script.execute: home_leave
+      - lambda: |-
+          id(current_mode) = 5;
+          id(pick_open_ms) = millis();
+          lv_obj_add_flag((lv_obj_t *) id(noc_title), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag((lv_obj_t *) id(noc_artist), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag((lv_obj_t *) id(noc_num), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_remove_flag((lv_obj_t *) id(pk_grp), LV_OBJ_FLAG_HIDDEN);
+      - script.execute: pick_render
+      - script.execute: update_np
+      - script.execute: pick_timeout
+
+  - id: pick_timeout
     mode: restart
     then:
       - delay: 20s
       - if:
-          condition: {lambda: 'return id(current_mode) == 6;'}
+          condition: {lambda: 'return id(current_mode) == 5;'}
           then: [{script.execute: switch_to_now}]
 
-  - id: ungroup_all
+  - id: pick_move
+    parameters:
+      dir: int
+    then:
+      - lambda: 'id(pick_sel) = (id(pick_sel) + dir + 5) % 5;'
+      - script.execute: pick_render
+      - script.execute: pick_timeout
+
+  - id: pick_render
     then:
       - lambda: |-
-          static const char *const e[] = {"media_player.club", "media_player.living_room_sonos", "media_player.office_sonos", "media_player.bathroom_sonos", "media_player.bedroom_sonos"};
-          std::string list; int n = 0;
-          for (int i = 1; i < 5; i++)
-            if ((id(sp_mask) >> i) & 1) { if (n++) list += ","; list += e[i]; }
-          id(ug_list) = list; id(ug_n) = n;
+          static image::Image *const cv[5] = {id(cv_pdm_london), id(cv_pdm_paradise), id(cv_dfp_love), id(cv_dfp_boiler), id(cv_gayfm)};
+          int s = id(pick_sel);
+          lv_image_set_src((lv_obj_t *) id(pk_c_cv), cv[s]->get_lv_image_dsc());
+          lv_image_set_src((lv_obj_t *) id(pk_l_cv), cv[(s + 4) % 5]->get_lv_image_dsc());
+          lv_image_set_src((lv_obj_t *) id(pk_r_cv), cv[(s + 1) % 5]->get_lv_image_dsc());
+
+  # taps on the LPs: middle = play, sides = bring it to the middle
+  - id: pick_tap
+    mode: restart
+    parameters:
+      which: int
+    then:
+      - delay: 80ms
       - if:
-          condition: {lambda: 'return id(ug_n) > 0;'}
+          condition: {lambda: 'return id(current_mode) == 5 && millis() - id(swipe_ms) > 300;'}
+          then:
+            - script.execute: screen_timeout_timer
+            - if:
+                condition: {lambda: 'return which == 0;'}
+                then: [{script.execute: pick_play}]
+                else: [{script.execute: {id: pick_move, dir: !lambda 'return which;'}}]
+
+  - id: pick_play
+    then:
+      - if:
+          condition: {lambda: 'return id(current_mode) == 5 && millis() - id(pick_open_ms) > 600;'}
           then:
             - homeassistant.action:
-                action: media_player.unjoin
+                action: script.rotary_play
                 data:
-                  entity_id: !lambda 'return id(ug_list);'
-            - lambda: 'id(sp_mask) = 1;'
-      - lvgl.label.update:
-          id: pl_ug_lbl
-          text: !lambda |-
-            if (id(ug_n) == 0) return std::string("CLUB ALREADY ALONE");
-            char b[32];
-            snprintf(b, sizeof(b), "UNGROUPED %d ROOM%s", id(ug_n), id(ug_n) > 1 ? "S" : "");
-            return std::string(b);
-      - script.execute: page_timeout
-      - delay: 2500ms
-      - lvgl.label.update: {id: pl_ug_lbl, text: "UNGROUP ALL ROOMS"}
+                  entity: "${player}"
+                  pick: !lambda 'return id(pick_sel);'
+            - lambda: 'id(pick_started_ms) = millis();'
+            - script.execute: switch_to_now
+            - script.execute: {id: toast, msg: "STARTING"}
+
+  # ══ HOME PAGES (has_home: the coffee-table knob) ══════════════════════════
+  # Media · Climate · Blinds · Lights sit side by side. Swipe between them or hold
+  # for the menu. Turn = the page's value, press = its main action, taps = chips.
+  # State lives in HA; the knob only shows targets early while you turn.
+  - id: home_render
+    then:
+      - lambda: |-
+          if (!${has_home}) return;
+          auto show = [](lv_obj_t *o, bool s) { if (s) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN); };
+          auto txt = [](lv_obj_t *o, const std::string &v) { lv_label_set_text(o, v.c_str()); };
+          auto up = [](std::string v) { for (auto &c : v) if ((unsigned char) c < 0x80) c = toupper((unsigned char) c); return v; };
+          auto chip = [](lv_obj_t *o, lv_obj_t *l, bool on, uint32_t col) {
+            lv_obj_set_style_bg_color(o, lv_color_hex(on ? col : 0xEDF2EF), LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(o, on ? LV_OPA_COVER : 20, LV_PART_MAIN);
+            lv_obj_set_style_border_width(o, on ? 0 : 1, LV_PART_MAIN);
+            lv_obj_set_style_text_color(l, lv_color_hex(on ? 0x12201E : 0xEDF2EF), LV_PART_MAIN);
+          };
+          auto mcol = [](const std::string &m) -> uint32_t {
+            if (m == "heat") return 0xEAC3BD; if (m == "heat_cool") return 0x8FB3C2;
+            if (m == "dry") return 0xA3BBAE; if (m == "fan_only") return 0xEDF2EF; return 0x8CBDB5; };
+          auto mname = [](const std::string &m) -> std::string {
+            if (m == "cool") return "Cool"; if (m == "heat") return "Heat"; if (m == "heat_cool") return "Auto";
+            if (m == "dry") return "Dry"; if (m == "fan_only") return "Fan"; return "Off"; };
+          auto pname = [](int p) -> std::string {
+            if (p <= 0) return "Closed"; if (p >= 100) return "Open"; if (p == 50) return "Half open";
+            char b[16]; snprintf(b, sizeof(b), "%d%% open", p); return std::string(b); };
+          static const char *const PAGE[4] = {"Media", "Climate", "Blinds", "Lights"};
+          static const char *const SCN[7] = {"Bae", "White", "Tokyo", "Miami", "Santorini", "Soho", "Night"};
+          static const uint32_t SC0[7] = {0xE6BCB6, 0xFFFFFF, 0xE3ACA4, 0xE6BCB6, 0x8FB3C2, 0x7A2E43, 0x2F3E4C};
+          static const uint32_t SC1[7] = {0x8CBDB5, 0xC9D6D0, 0x33596A, 0x8FB3C2, 0xEDF2EF, 0xE6BCB6, 0x456A78};
+          int m = id(current_mode);
+          bool homem = m >= 20 && m <= 24;
+          int page = m == 20 ? id(hm_sel) : (m >= 21 && m <= 23 ? m - 20 : (m == 24 ? 3 : 0));
+          const std::string &am = id(ac_mode);
+          bool ac_on = !(am == "off" || am == "unknown" || am == "unavailable" || am.empty());
+          int p0 = id(bl_pos0) < 0 ? 0 : id(bl_pos0), p1 = id(bl_pos1) < 0 ? 0 : id(bl_pos1);
+          int t0 = id(bl_tgt0) < 0 ? p0 : id(bl_tgt0), t1 = id(bl_tgt1) < 0 ? p1 : id(bl_tgt1);
+          // page dots: wide = this page; colour = status (music, aircon, a blind open, lights on)
+          bool has[4] = {id(media_playing), ac_on, p0 > 0 || p1 > 0, id(li_on)};
+          uint32_t sc[4] = {0xEDF2EF, mcol(am), 0xA3BBAE, 0xF5D76E};
+          lv_obj_t *dots[4] = {((lv_obj_t *) id(hd_0)), ((lv_obj_t *) id(hd_1)), ((lv_obj_t *) id(hd_2)), ((lv_obj_t *) id(hd_3))};
+          for (int i = 0; i < 4; i++) {
+            bool on = i == page;
+            lv_obj_set_width(dots[i], on ? 20 : 8);
+            lv_obj_set_style_bg_color(dots[i], lv_color_hex(has[i] ? sc[i] : 0xEDF2EF), LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(dots[i], has[i] ? LV_OPA_COVER : (on ? 230 : 66), LV_PART_MAIN);
+          }
+          show(((lv_obj_t *) id(grp_menu)), m == 20); show(((lv_obj_t *) id(grp_clim)), m == 21); show(((lv_obj_t *) id(grp_blind)), m == 22);
+          show(((lv_obj_t *) id(grp_light)), m == 23); show(((lv_obj_t *) id(grp_scene)), m == 24);
+          show(((lv_obj_t *) id(sh_sofa)), m == 22); show(((lv_obj_t *) id(sh_sheer)), m == 22);
+          show(((lv_obj_t *) id(noc_wm)), m != 22);           // the blind stops need the bottom of the arc
+          if (!homem) return;
+          for (lv_obj_t *o : {((lv_obj_t *) id(noc_room)), ((lv_obj_t *) id(noc_title)), ((lv_obj_t *) id(noc_artist)), ((lv_obj_t *) id(noc_num)), ((lv_obj_t *) id(pk_grp)), ((lv_obj_t *) id(noc_prog))}) show(o, false);
+          show(((lv_obj_t *) id(noc_clk)), m == 20);
+          // the ring shows the page's value (in the menu: a faint preview)
+          lv_obj_t *R = ((lv_obj_t *) id(noc_ring)), *G = ((lv_obj_t *) id(noc_glow));
+          lv_opa_t ro = m == 20 ? 128 : LV_OPA_COVER;
+          auto ring = [&](int v, int g, uint32_t col, lv_opa_t opa) {
+            lv_arc_set_value(R, v); lv_arc_set_value(G, g);
+            lv_obj_set_style_arc_color(R, lv_color_hex(col), LV_PART_INDICATOR);
+            lv_obj_set_style_arc_opa(R, opa, LV_PART_INDICATOR);
+            lv_obj_set_style_arc_color(G, lv_color_hex(col), LV_PART_INDICATOR);
+            lv_obj_set_style_arc_width(R, 3, LV_PART_INDICATOR);
+          };
+          int sel = id(bl_sel), pos = sel ? p1 : p0, tgt = sel ? t1 : t0, dir = sel ? id(bl_dir1) : id(bl_dir0);
+          if (page == 0) { int v = (int) roundf(id(vol_local) * 100); ring(v, v, 0xF2F4F7, ro); }
+          else if (page == 1) { int v = (id(ac_set) - 16) * 100 / 14; ring(v, v, ac_on ? mcol(am) : 0xEDF2EF, ac_on ? ro : 115); }
+          else if (page == 2) ring(pos, tgt, 0xEDF2EF, ro);
+          else { int v = id(li_on) ? id(li_bri) : 0; ring(v, v, 0xF5D76E, ro); }
+          char b[64];
+          if (m == 20) {
+            int s = id(hm_sel);
+            txt(((lv_obj_t *) id(hm_cur)), PAGE[s]); txt(((lv_obj_t *) id(hm_prev)), s > 0 ? PAGE[s - 1] : ""); txt(((lv_obj_t *) id(hm_next)), s < 3 ? PAGE[s + 1] : "");
+            std::string st;
+            if (s == 0) {
+              std::string a = id(media_artist).state; size_t amp = a.find(" & "); if (amp != std::string::npos) a = a.substr(0, amp);
+              st = id(media_playing) ? (a.empty() || a == "unknown" ? std::string("Now playing") : "Now playing · " + a)
+                                     : std::string(id(media_state).state == "paused" ? "Paused" : "Nothing playing");
+            } else if (s == 1) {
+              if (ac_on) snprintf(b, sizeof(b), "%s to %d° · %.1f° in", mname(am).c_str(), id(ac_set), id(ac_room));
+              else if (!isnan(id(ac_room))) snprintf(b, sizeof(b), "Off · %.1f° in the room", id(ac_room));
+              else snprintf(b, sizeof(b), "Off");
+              st = b;
+            } else if (s == 2) { snprintf(b, sizeof(b), "Sofa %d%% · Sheer %d%% open", p0, p1); st = b; }
+            else { if (id(li_on)) snprintf(b, sizeof(b), "On · %d%%", id(li_bri)); else snprintf(b, sizeof(b), "All off"); st = b; }
+            txt(((lv_obj_t *) id(hm_stat)), up(st));
+          } else if (m == 21) {
+            snprintf(b, sizeof(b), "%d", id(ac_set));
+            txt(((lv_obj_t *) id(hc_big)), b);
+            lv_obj_set_style_text_opa(((lv_obj_t *) id(hc_big)), ac_on ? LV_OPA_COVER : 115, LV_PART_MAIN);
+            lv_obj_set_style_text_opa(((lv_obj_t *) id(hc_deg)), ac_on ? LV_OPA_COVER : 115, LV_PART_MAIN);
+            lv_obj_update_layout(((lv_obj_t *) id(hc_big)));
+            lv_obj_align_to(((lv_obj_t *) id(hc_deg)), ((lv_obj_t *) id(hc_big)), LV_ALIGN_OUT_RIGHT_TOP, 2, 8);
+            show(((lv_obj_t *) id(hc_state)), !ac_on);
+            if (!isnan(id(ac_room))) snprintf(b, sizeof(b), "%.1f° IN THE ROOM", id(ac_room)); else b[0] = 0;
+            txt(((lv_obj_t *) id(hc_room)), b);
+            lv_obj_align(((lv_obj_t *) id(hc_room)), LV_ALIGN_CENTER, 0, ac_on ? 30 : 62);
+            txt(((lv_obj_t *) id(hc_mode_l)), up(mname(ac_on ? am : id(ac_last_mode))));
+            chip(((lv_obj_t *) id(hc_mode)), ((lv_obj_t *) id(hc_mode_l)), ac_on, mcol(am));
+            txt(((lv_obj_t *) id(hc_fan_l)), "FAN " + up(id(ac_fan)));
+            chip(((lv_obj_t *) id(hc_fan)), ((lv_obj_t *) id(hc_fan_l)), false, 0);
+          } else if (m == 22) {
+            txt(((lv_obj_t *) id(hb_head)), dir > 0 ? std::string("Opening") : dir < 0 ? std::string("Closing") : pname(tgt));
+            if (dir != 0) snprintf(b, sizeof(b), "TO %s · NOW %d%%", up(pname(tgt)).c_str(), pos);
+            else snprintf(b, sizeof(b), "%s", tgt > 0 ? "PRESS TO CLOSE" : "PRESS TO OPEN");
+            txt(((lv_obj_t *) id(hb_sub)), b);
+            chip(((lv_obj_t *) id(hb_sofa)), ((lv_obj_t *) id(hb_sofa_l)), sel == 0, 0x8CBDB5);
+            chip(((lv_obj_t *) id(hb_sheer)), ((lv_obj_t *) id(hb_sheer_l)), sel == 1, 0x8CBDB5);
+            lv_obj_t *st[5] = {((lv_obj_t *) id(hb_s0)), ((lv_obj_t *) id(hb_s1)), ((lv_obj_t *) id(hb_s2)), ((lv_obj_t *) id(hb_s3)), ((lv_obj_t *) id(hb_s4))};
+            lv_obj_t *sl[5] = {((lv_obj_t *) id(hb_s0_l)), ((lv_obj_t *) id(hb_s1_l)), ((lv_obj_t *) id(hb_s2_l)), ((lv_obj_t *) id(hb_s3_l)), ((lv_obj_t *) id(hb_s4_l))};
+            for (int k = 0; k < 5; k++) {
+              bool on = tgt == k * 25;
+              lv_obj_set_style_bg_color(st[k], lv_color_hex(on ? 0xEDF2EF : 0x0A0D0F), LV_PART_MAIN);
+              lv_obj_set_style_bg_opa(st[k], on ? LV_OPA_COVER : 115, LV_PART_MAIN);
+              lv_obj_set_style_text_color(sl[k], lv_color_hex(on ? 0x12201E : 0xEDF2EF), LV_PART_MAIN);
+              lv_obj_set_style_text_opa(sl[k], on ? LV_OPA_COVER : 210, LV_PART_MAIN);
+            }
+            lv_obj_set_height(((lv_obj_t *) id(sh_sofa)), (100 - p0) * 480 / 100);
+            lv_obj_set_height(((lv_obj_t *) id(sh_sheer)), (100 - p1) * 480 / 100);
+          } else if (m == 23) {
+            txt(((lv_obj_t *) id(hl_head)), id(li_on) ? std::string(id(li_scene) >= 0 ? SCN[id(li_scene)] : "On") : std::string("Off"));
+            lv_obj_set_style_text_opa(((lv_obj_t *) id(hl_head)), id(li_on) ? LV_OPA_COVER : 128, LV_PART_MAIN);
+            if (id(li_on)) snprintf(b, sizeof(b), "%d%% · PRESS FOR ALL OFF", id(li_bri)); else snprintf(b, sizeof(b), "PRESS FOR ALL ON");
+            txt(((lv_obj_t *) id(hl_sub)), b);
+          } else if (m == 24) {
+            int i = id(sc_idx);
+            auto paint = [&](lv_obj_t *o, int k) {
+              show(o, k >= 0 && k < 7); if (k < 0 || k >= 7) return;
+              lv_obj_set_style_bg_color(o, lv_color_hex(SC0[k]), LV_PART_MAIN);
+              lv_obj_set_style_bg_grad_color(o, lv_color_hex(SC1[k]), LV_PART_MAIN);
+            };
+            paint(((lv_obj_t *) id(sc_c)), i); paint(((lv_obj_t *) id(sc_l)), i - 1); paint(((lv_obj_t *) id(sc_r)), i + 1);
+            txt(((lv_obj_t *) id(sc_name)), SCN[i]);
+          }
+
+  # back to the Media face: put the now-playing widgets and the ring back
+  - id: home_leave
+    then:
+      - lambda: |-
+          if (!${has_home}) return;
+          for (lv_obj_t *o : {(lv_obj_t *) id(grp_menu), (lv_obj_t *) id(grp_clim), (lv_obj_t *) id(grp_blind), (lv_obj_t *) id(grp_light),
+                              (lv_obj_t *) id(grp_scene), (lv_obj_t *) id(sh_sofa), (lv_obj_t *) id(sh_sheer)})
+            lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+          for (lv_obj_t *o : {(lv_obj_t *) id(noc_clk), (lv_obj_t *) id(noc_room), (lv_obj_t *) id(noc_wm)})
+            lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
+          lv_obj_t *R = (lv_obj_t *) id(noc_ring), *G = (lv_obj_t *) id(noc_glow);
+          int v = (int) roundf(id(vol_local) * 100);
+          lv_arc_set_value(R, v); lv_arc_set_value(G, v);
+          lv_obj_set_style_arc_color(R, lv_color_hex(0xF2F4F7), LV_PART_INDICATOR);
+          lv_obj_set_style_arc_opa(R, LV_OPA_COVER, LV_PART_INDICATOR);
+          lv_obj_set_style_arc_width(R, 2, LV_PART_INDICATOR);
+          lv_obj_set_style_arc_color(G, lv_color_hex(0xE9EDF2), LV_PART_INDICATOR);
+
+  - id: home_timeout
+    mode: restart
+    then:
+      - delay: !lambda 'return (uint32_t) (id(return_after).state * 1000);'
+      # never leave a blind page while a blind is still moving
+      - while:
+          condition: {lambda: 'return id(bl_dir0) != 0 || id(bl_dir1) != 0;'}
+          then: [{delay: 2s}]
+      - if:
+          condition: {lambda: 'return id(current_mode) >= 20 && id(current_mode) <= 24;'}
+          then: [{script.execute: home_go_media}]
+
+  # Media is Pick to play whenever nothing is playing
+  - id: home_go_media
+    then:
+      - script.execute: pick_check
+      - if:
+          condition: {lambda: 'return id(pick_turn_ok);'}
+          then: [{script.execute: open_picker}]
+          else: [{script.execute: switch_to_now}]
+
+  - id: home_enter
+    parameters:
+      page: int
+    then:
+      - if:
+          condition: {lambda: 'return page <= 0;'}
+          then: [{script.execute: home_go_media}]
+          else:
+            - script.stop: pick_timeout
+            - lambda: 'id(current_mode) = 20 + (page > 3 ? 3 : page);'
+            - script.execute: home_render
+            - script.execute: home_timeout
+
+  - id: open_menu
+    then:
+      - script.stop: pick_timeout
+      - lambda: |-
+          int m = id(current_mode);
+          id(hm_sel) = (m >= 21 && m <= 23) ? m - 20 : (m == 24 ? 3 : 0);
+          id(current_mode) = 20;
+      - script.execute: home_render
+      - script.execute: home_timeout
+
+  - id: home_turn
+    parameters:
+      dir: int
+    then:
+      - lambda: |-
+          int m = id(current_mode);
+          auto cl = [](int v, int a, int b) { return v < a ? a : (v > b ? b : v); };
+          if (m == 20) id(hm_sel) = cl(id(hm_sel) + dir, 0, 3);
+          else if (m == 21) { id(ac_set) = cl(id(ac_set) + dir, 16, 30); id(ac_touched_ms) = millis(); }
+          else if (m == 22) {
+            int &t = id(bl_sel) ? id(bl_tgt1) : id(bl_tgt0);
+            int p = id(bl_sel) ? id(bl_pos1) : id(bl_pos0);
+            int cur = t < 0 ? (p < 0 ? 0 : p) : t, v;
+            if (dir > 0) { v = 100; for (int k = 0; k <= 100; k += 25) if (k > cur) { v = k; break; } }
+            else { v = 0; for (int k = 100; k >= 0; k -= 25) if (k < cur) { v = k; break; } }
+            t = v; id(bl_touched_ms) = millis();
+          }
+          else if (m == 23) {
+            if (id(li_on)) { id(li_bri) = cl(id(li_bri) + dir * 10, 1, 100); id(li_acc) += dir; id(li_scene) = -1; id(li_touched_ms) = millis(); }
+          }
+          else if (m == 24) id(sc_idx) = cl(id(sc_idx) + dir, 0, 6);
+      - script.execute: home_render
+      - script.execute: home_timeout
+      - if:
+          condition: {lambda: 'return id(current_mode) == 21;'}
+          then: [{script.execute: ac_temp_send}]
+      - if:
+          condition: {lambda: 'return id(current_mode) == 22 && id(bl_sel) == 0;'}
+          then: [{script.execute: bl_send0}]
+      - if:
+          condition: {lambda: 'return id(current_mode) == 22 && id(bl_sel) == 1;'}
+          then: [{script.execute: bl_send1}]
+      - if:
+          condition: {lambda: 'return id(current_mode) == 23 && id(li_acc) != 0;'}
+          then: [{script.execute: li_send}]
+
+  - id: home_press
+    then:
+      - lambda: |-
+          int m = id(current_mode);
+          id(htp) = m;
+          if (m == 22) {
+            int s = id(bl_sel);
+            if ((s ? id(bl_dir1) : id(bl_dir0)) != 0) id(htp) = 220;          // moving: stop
+            else {
+              int &t = s ? id(bl_tgt1) : id(bl_tgt0); int p = s ? id(bl_pos1) : id(bl_pos0);
+              int cur = t < 0 ? (p < 0 ? 0 : p) : t;
+              t = cur > 0 ? 0 : 100; id(bl_touched_ms) = millis();
+            }
+          }
+      - if:
+          condition: {lambda: 'return id(htp) == 20;'}
+          then: [{script.execute: {id: home_enter, page: !lambda 'return id(hm_sel);'}}]
+      - if:
+          condition: {lambda: 'return id(htp) == 21;'}
+          then:
+            - homeassistant.action:
+                action: climate.set_hvac_mode
+                data:
+                  entity_id: climate.aircon
+                  hvac_mode: !lambda |-
+                    const std::string &am = id(ac_mode);
+                    bool on = !(am == "off" || am == "unknown" || am == "unavailable" || am.empty());
+                    return on ? std::string("off") : id(ac_last_mode);
+            - lambda: |-
+                const std::string am = id(ac_mode);
+                bool on = !(am == "off" || am == "unknown" || am == "unavailable" || am.empty());
+                id(ac_mode) = on ? std::string("off") : id(ac_last_mode);
+      - if:
+          condition: {lambda: 'return id(htp) == 22 && id(bl_sel) == 0;'}
+          then: [{script.execute: bl_send0}]
+      - if:
+          condition: {lambda: 'return id(htp) == 22 && id(bl_sel) == 1;'}
+          then: [{script.execute: bl_send1}]
+      - if:
+          condition: {lambda: 'return id(htp) == 220;'}
+          then:
+            - homeassistant.action:
+                action: cover.stop_cover
+                data:
+                  entity_id: !lambda 'return std::string(id(bl_sel) ? "cover.sheer_blinds" : "cover.blinds");'
+      - if:
+          condition: {lambda: 'return id(htp) == 23;'}
+          then:
+            - if:
+                condition: {lambda: 'return id(li_on);'}
+                then: [{homeassistant.action: {action: light.turn_off, data: {entity_id: light.ckub_all}}}]
+                else: [{homeassistant.action: {action: light.turn_on, data: {entity_id: light.ckub_all}}}]
+            - lambda: 'id(li_on) = !id(li_on); id(li_scene) = -1;'
+      - if:
+          condition: {lambda: 'return id(htp) == 24;'}
+          then: [{script.execute: scene_go}]
+      - script.execute: home_render
+      - script.execute: home_timeout
+
+  # glass taps on the home pages (chips, blind stops, menu sides, scene discs)
+  - id: home_tap
+    mode: restart
+    parameters:
+      which: int
+    then:
+      - delay: 80ms
+      - if:
+          condition: {lambda: 'return millis() - id(swipe_ms) > 300 && id(current_mode) >= 20 && id(current_mode) <= 24;'}
+          then:
+            - lambda: |-
+                int m = id(current_mode), w = which;
+                auto cl = [](int v, int a, int b) { return v < a ? a : (v > b ? b : v); };
+                id(htp) = 0;
+                if (m == 20) { if (w == 1) id(hm_sel) = cl(id(hm_sel) - 1, 0, 3); else if (w == 3) id(hm_sel) = cl(id(hm_sel) + 1, 0, 3); else if (w == 2) id(htp) = 1; }
+                else if (m == 21 && (w == 10 || w == 11)) id(htp) = w;
+                else if (m == 22 && (w == 20 || w == 21)) id(bl_sel) = w - 20;
+                else if (m == 22 && w >= 30 && w <= 34) {
+                  int &t = id(bl_sel) ? id(bl_tgt1) : id(bl_tgt0);
+                  t = (w - 30) * 25; id(bl_touched_ms) = millis(); id(htp) = 30;
+                }
+                else if (m == 23 && w == 40) { id(sc_idx) = id(li_scene) >= 0 ? id(li_scene) : 2; id(current_mode) = 24; }
+                else if (m == 24) { if (w == 50) id(sc_idx) = cl(id(sc_idx) - 1, 0, 6); else if (w == 52) id(sc_idx) = cl(id(sc_idx) + 1, 0, 6); else if (w == 51) id(htp) = 51; }
+            - if:
+                condition: {lambda: 'return id(htp) == 1;'}
+                then: [{script.execute: {id: home_enter, page: !lambda 'return id(hm_sel);'}}]
+            - if:
+                condition: {lambda: 'return id(htp) == 10;'}
+                then:
+                  - homeassistant.action:
+                      action: climate.set_hvac_mode
+                      data:
+                        entity_id: climate.aircon
+                        hvac_mode: !lambda |-
+                          static const char *const M[5] = {"cool", "heat", "heat_cool", "dry", "fan_only"};
+                          const std::string &am = id(ac_mode);
+                          bool on = !(am == "off" || am == "unknown" || am == "unavailable" || am.empty());
+                          const std::string &cur = on ? am : id(ac_last_mode);
+                          int i = 0; for (int k = 0; k < 5; k++) if (cur == M[k]) i = k;
+                          id(ac_last_mode) = M[(i + 1) % 5];
+                          return id(ac_last_mode);
+                  - lambda: 'id(ac_mode) = id(ac_last_mode);'
+            - if:
+                condition: {lambda: 'return id(htp) == 11;'}
+                then:
+                  - homeassistant.action:
+                      action: climate.set_fan_mode
+                      data:
+                        entity_id: climate.aircon
+                        fan_mode: !lambda |-
+                          static const char *const F[6] = {"auto", "quiet", "low", "medium", "high", "strong"};
+                          int i = 0; for (int k = 0; k < 6; k++) if (id(ac_fan) == F[k]) i = k;
+                          id(ac_fan) = F[(i + 1) % 6];
+                          return id(ac_fan);
+            - if:
+                condition: {lambda: 'return id(htp) == 30 && id(bl_sel) == 0;'}
+                then: [{script.execute: bl_send0}]
+            - if:
+                condition: {lambda: 'return id(htp) == 30 && id(bl_sel) == 1;'}
+                then: [{script.execute: bl_send1}]
+            - if:
+                condition: {lambda: 'return id(htp) == 51;'}
+                then: [{script.execute: scene_go}]
+            - script.execute: home_render
+            - script.execute: home_timeout
+
+  - id: scene_go
+    then:
+      - homeassistant.action:
+          action: scene.turn_on
+          data:
+            entity_id: !lambda |-
+              static const char *const E[7] = {"scene.bae", "scene.white", "scene.home_home_tokyo", "scene.home_home_miami",
+                                               "scene.home_home_santorini", "scene.home_home_soho", "scene.night"};
+              return std::string(E[id(sc_idx)]);
+      - lambda: 'id(li_scene) = id(sc_idx); id(li_on) = true; id(current_mode) = 23;'
+      - script.execute: home_render
+
+  # sends wait for the turning to stop, so the aircon beeps once and the motor doesn't stutter
+  - id: ac_temp_send
+    mode: restart
+    then:
+      - delay: 600ms
+      - homeassistant.action:
+          action: climate.set_temperature
+          data:
+            entity_id: climate.aircon
+            temperature: !lambda 'return id(ac_set);'
+  # cover.blinds is inverted: its position 0 is physically open
+  - id: bl_send0
+    mode: restart
+    then:
+      - delay: 700ms
+      - homeassistant.action:
+          action: cover.set_cover_position
+          data:
+            entity_id: cover.blinds
+            position: !lambda 'return 100 - (id(bl_tgt0) < 0 ? 0 : id(bl_tgt0));'
+  - id: bl_send1
+    mode: restart
+    then:
+      - delay: 700ms
+      - homeassistant.action:
+          action: cover.set_cover_position
+          data:
+            entity_id: cover.sheer_blinds
+            position: !lambda 'return id(bl_tgt1) < 0 ? 0 : id(bl_tgt1);'
+  # brightness moves only the lights that are already on (script.rotary_light_step)
+  - id: li_send
+    mode: restart
+    then:
+      - delay: 350ms
+      - homeassistant.action:
+          action: script.rotary_light_step
+          data:
+            step: !lambda 'return id(li_acc) * 10;'
+      - lambda: 'id(li_acc) = 0;'
 
   # ══ INPUT ═════════════════════════════════════════════════════════════════
   - id: knob_turn
     parameters:
       dir: int
     then:
+      - lambda: 'id(user_wake) = true;'
       - script.execute: screen_timeout_timer
+      - script.execute: pick_check
       - lambda: |-
           id(pa) = id(current_mode);
           if (id(rotary_button).state) { id(turned_while_held) = true; id(pa) += 100; }
+          // nothing playing: the first turn opens the picker instead of moving the volume
+          if (id(pa) == 0 && id(pick_turn_ok)) id(pa) = 50;
+          // home pages (menu, Climate, Blinds, Lights, Scenes) take the turn
+          if (id(current_mode) >= 20 && id(current_mode) <= 24) id(pa) = 200;
+      - if:
+          condition: {lambda: 'return id(pa) == 200;'}
+          then: [{script.execute: {id: home_turn, dir: !lambda 'return dir;'}}]
+      - if:
+          condition: {lambda: 'return id(pa) == 50;'}
+          then: [{script.execute: open_picker}]
+      - if:
+          condition: {lambda: 'return id(pa) == 5 || id(pa) == 105;'}
+          then: [{script.execute: {id: pick_move, dir: !lambda 'return dir;'}}]
       # now playing: volume
       - if:
           condition: {lambda: 'return id(pa) == 0;'}
@@ -846,71 +1428,142 @@ script:
                 id(seek_touched_ms) = millis();
             - script.execute: {id: hud_show, kind: 2}
             - script.execute: seek_send
-      # playlists: choose
+      # turning cancels a pending "hold to stop" (hold + turn = scrub)
       - if:
-          condition: {lambda: 'return id(pa) == 6 || id(pa) == 106;'}
-          then:
-            - lambda: |-
-                if (id(pl_list) == 0) { id(pl_sel) = (id(pl_sel) + dir + 7) % 7; return; }
-                int n = id(pl_list) == 1 ? id(fav_v).size() : id(alb_v).size();
-                int &ix = id(pl_list) == 1 ? id(fav_idx) : id(alb_idx);
-                ix += dir; if (ix > n - 1) ix = n - 1; if (ix < 0) ix = 0;
-            - script.execute: pl_render
-            - script.execute: page_timeout
+          condition: {lambda: 'return id(hold_hint);'}
+          then: [{script.execute: hold_hint_end}]
 
   - id: knob_press
     then:
+      - lambda: 'id(user_wake) = true;'
       - script.execute: screen_timeout_timer
-      - lambda: 'id(pa) = id(current_mode);'
+      - script.execute: pick_check
+      - lambda: |-
+          id(pa) = id(current_mode);
+          // picker when allowed; a Bedroom pause (any length) still just resumes
+          bool paused = id(media_state).state == "paused";
+          if (id(pa) == 0 && id(pick_ok) && (${pick_more} || !paused)) id(pa) = 50;
+          // a pick is still starting: a second press would pause it
+          if (id(pa) == 0 && id(pick_started_ms) != 0 && millis() - id(pick_started_ms) < 15000 && !id(media_playing)) id(pa) = 51;
+          if (id(current_mode) >= 20 && id(current_mode) <= 24) id(pa) = 200;
+      - if:
+          condition: {lambda: 'return id(pa) == 200;'}
+          then: [{script.execute: home_press}]
       - if:
           condition: {lambda: 'return id(pa) == 0;'}
           then:
-            - homeassistant.action: {action: media_player.media_play_pause, data: {entity_id: media_player.club}}
+            - homeassistant.action: {action: media_player.media_play_pause, data: {entity_id: "${player}"}}
       - if:
-          condition: {lambda: 'return id(pa) == 6;'}
-          then: [{script.execute: pl_play}]
+          condition: {lambda: 'return id(pa) == 50;'}
+          then: [{script.execute: open_picker}]
+      - if:
+          condition: {lambda: 'return id(pa) == 51;'}
+          then: [{script.execute: {id: toast, msg: "STARTING"}}]
+      - if:
+          condition: {lambda: 'return id(pa) == 5;'}
+          then:
+            - lambda: 'id(pick_open_ms) = 0;'
+            - script.execute: pick_play
 
+  - id: knob_next
+    then:
+      - script.execute: screen_timeout_timer
+      - if:
+          condition: {lambda: 'return id(current_mode) == 0;'}
+          then:
+            - homeassistant.action: {action: media_player.media_next_track, data: {entity_id: "${player}"}}
+            - script.execute: {id: toast, msg: "NEXT"}
+
+  - id: knob_prev
+    then:
+      - script.execute: screen_timeout_timer
+      - if:
+          condition: {lambda: 'return id(current_mode) == 0;'}
+          then:
+            - homeassistant.action: {action: media_player.media_previous_track, data: {entity_id: "${player}"}}
+            - script.execute: {id: toast, msg: "PREVIOUS"}
+
+  # hold: stop the music on every speaker in the house. Works from the night clock
+  # too (a deliberate hold isn't a stray bump), never under the alarm popup.
+  # coffee-table knob (has_home): hold opens the menu; hold in the menu goes back to Media.
   - id: knob_long
     then:
-      - script.execute: screen_timeout_timer
       - lambda: 'id(pa) = id(current_mode);'
+      - script.execute: screen_timeout_timer
       - if:
-          condition: {lambda: 'return id(pa) == 0;'}
-          then: [{script.execute: open_playlists}]
+          condition: {lambda: 'return ${has_home} && id(pa) == 20;'}
+          then: [{script.execute: home_go_media}]
       - if:
-          condition: {lambda: 'return id(pa) == 6;'}
-          then: [{script.execute: pl_back}]
+          condition: {lambda: 'return ${has_home} && (id(pa) == 0 || id(pa) == 5 || (id(pa) >= 21 && id(pa) <= 24));'}
+          then: [{script.execute: open_menu}]
+      - if:
+          condition: {lambda: 'return !${has_home} && id(pa) == 5;'}
+          then: [{script.execute: switch_to_now}]
+      - if:
+          condition: {lambda: 'return !${has_home} && (id(pa) == 0 || (id(pa) == 9 && !id(alarm_popup_up)));'}
+          then:
+            - homeassistant.action: {action: script.turn_on, data: {entity_id: script.rotary_stop_all}}
+            - script.execute: {id: toast, msg: "ALL MUSIC STOPPED"}
 
-  - id: tap_center
+  # held long enough without turning: say what letting go will do
+  - id: hold_hint_start
     mode: restart
     then:
-      - delay: 60ms
+      - delay: 800ms
       - if:
-          condition: {lambda: 'return millis() - id(swipe_ms) > 400 && id(current_mode) == 0;'}
+          condition: {lambda: 'return !${has_home} && id(rotary_button).state && !id(turned_while_held) && id(current_mode) == 0;'}
           then:
-            - homeassistant.action: {action: media_player.media_play_pause, data: {entity_id: media_player.club}}
+            - lambda: 'id(hold_hint) = true;'
+            - script.execute: {id: toast, msg: "LET GO TO STOP ALL"}
 
-  - id: swipe_act
+  - id: hold_hint_end
     then:
-      - lambda: 'id(pa) = id(current_mode);'
+      - script.stop: hold_hint_start
       - if:
-          condition: {lambda: 'return id(pa) == 0 && id(swipe) == 4;'}
-          then: [{script.execute: open_playlists}]
-      # playlists: any swipe goes back
+          condition: {lambda: 'return id(hold_hint);'}
+          then:
+            - lambda: 'id(hold_hint) = false; id(toast_ms) = 0;'
+            - script.execute: update_np
+
+  # a short line in place of the artist, so a press is acknowledged at once
+  - id: toast
+    mode: restart
+    parameters:
+      msg: std::string
+    then:
+      - lambda: |-
+          id(toast_ms) = millis() + (id(hold_hint) ? 60000 : 1600);
+          lv_label_set_text((lv_obj_t *) id(noc_artist), msg.c_str());
+      - delay: 1600ms
       - if:
-          condition: {lambda: 'return id(pa) == 6;'}
-          then: [{script.execute: pl_back}]
+          condition: {lambda: 'return !id(hold_hint);'}
+          then:
+            - lambda: 'id(toast_ms) = 0;'
+            - script.execute: update_np
 
   # ══ NOW PLAYING ═══════════════════════════════════════════════════════════
+  # Volume goes to HA as the player's new level plus the change since the last
+  # send; script.rotary_volume moves every grouped room by that same change.
   - id: vol_send
     mode: restart
     then:
       - delay: 150ms
-      - homeassistant.action:
-          action: media_player.volume_set
-          data:
-            entity_id: media_player.club
-            volume_level: !lambda 'return id(vol_local);'
+      - if:
+          condition: {lambda: 'return ${group_vol};'}
+          then:
+            - homeassistant.action:
+                action: script.rotary_volume
+                data:
+                  entity: ${player}
+                  level: !lambda 'return id(vol_local);'
+                  delta: !lambda 'return id(vol_local) - id(vol_sent);'
+          else:
+            - homeassistant.action:
+                action: media_player.volume_set
+                data:
+                  entity_id: ${player}
+                  volume_level: !lambda 'return id(vol_local);'
+      - lambda: 'id(vol_sent) = id(vol_local);'
 
   - id: seek_send
     mode: restart
@@ -919,7 +1572,7 @@ script:
       - homeassistant.action:
           action: media_player.media_seek
           data:
-            entity_id: media_player.club
+            entity_id: ${player}
             seek_position: !lambda 'return (int) id(pos_s);'
 
   # Pill's second line doubles as the readout while turning (1) or scrubbing (2)
@@ -961,11 +1614,10 @@ script:
             lambda: |-
               if (!id(media_is_tv) || id(tv_pic).empty()) return false;
               const std::string &x = id(tv_pic);
-              if (x[0] == '/' && x.rfind("/api/", 0) != 0) return false;  // Plex-relative path, not on HA
-              size_t p = x.find("cache=");
-              std::string k = "tv:" + (p == std::string::npos ? x : x.substr(p));
+              std::string k = "tv:" + x;
               if (k == id(art_key)) return false;
               id(art_key) = k;
+              id(art_tries) = 0;
               return true;
           then:
             - online_image.set_url:
@@ -976,7 +1628,7 @@ script:
       - script.execute: update_np
 
   - id: update_np
-    then: [{script.execute: update_faces}]
+    then: [{script.execute: update_faces}, {script.execute: home_render}]
 
   - id: update_faces
     then:
@@ -989,112 +1641,17 @@ script:
           if (!id(media_playing)) a = "Paused";
           for (auto &c : a) if ((unsigned char) c < 0x80) c = toupper((unsigned char) c);
           lv_label_set_text((lv_obj_t *) id(noc_title), t.c_str());
-          lv_label_set_text((lv_obj_t *) id(noc_artist), a.c_str());
+          if (millis() >= id(toast_ms)) lv_label_set_text((lv_obj_t *) id(noc_artist), a.c_str());
+          lv_label_set_text((lv_obj_t *) id(noc_room), id(current_mode) == 5 ? "PLAY IN ${room_name}" : id(room_txt).c_str());
           lv_obj_set_style_opa((lv_obj_t *) id(noc_title), id(media_playing) ? LV_OPA_COVER : LV_OPA_50, LV_PART_MAIN);
           lv_obj_set_style_image_opa((lv_obj_t *) id(noc_bg), id(media_playing) ? 235 : 120, LV_PART_MAIN);
+          // the progress hairline only makes sense for a track with a length
+          if (id(dur_s) > 0 && !id(media_is_tv)) lv_obj_remove_flag((lv_obj_t *) id(noc_prog), LV_OBJ_FLAG_HIDDEN);
+          else lv_obj_add_flag((lv_obj_t *) id(noc_prog), LV_OBJ_FLAG_HIDDEN);
           // night face: track info only while something is actually playing
           bool on = id(media_playing) && ok(t) && t != "Nothing playing";
           lv_label_set_text((lv_obj_t *) id(nt_title), on ? t.c_str() : "");
           lv_label_set_text((lv_obj_t *) id(nt_artist), on ? a.c_str() : "");
-
-  # ══ PLAYLISTS ═════════════════════════════════════════════════════════════
-  # close / hold / swipe: from a list back to the carousel, from the carousel out
-  - id: pl_back
-    then:
-      - script.execute: screen_timeout_timer
-      - if:
-          condition: {lambda: 'return id(pl_list) != 0;'}
-          then:
-            - lambda: 'id(pl_list) = 0;'
-            - script.execute: pl_render
-            - script.execute: page_timeout
-          else:
-            - script.execute: switch_to_now
-
-  - id: pl_render
-    then:
-      - lambda: |-
-          int L = id(pl_list);
-          auto vis = [](lv_obj_t *o, bool v) { if (v) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN); };
-          lv_obj_t *mix[] = {(lv_obj_t *) id(pl_lb), (lv_obj_t *) id(pl_rb), (lv_obj_t *) id(pl_cb), (lv_obj_t *) id(pl_name),
-                             (lv_obj_t *) id(pl_dots), (lv_obj_t *) id(pl_ug)};
-          for (auto o : mix) vis(o, L == 0);
-          vis((lv_obj_t *) id(pl_listv), L != 0);
-          lv_label_set_text((lv_obj_t *) id(pl_head), L == 0 ? "PLAYLISTS" : L == 1 ? "FAVOURITES" : "ALBUMS");
-          lv_label_set_text((lv_obj_t *) id(pl_x), L == 0 ? "\uF00D" : "\uF053");
-          if (L == 0) return;
-          const std::vector<std::string> &v = L == 1 ? id(fav_v) : id(alb_v);
-          int n = v.size();
-          int &ix = L == 1 ? id(fav_idx) : id(alb_idx);
-          if (ix > n - 1) ix = n - 1; if (ix < 0) ix = 0;
-          // keep the big title to two lines: cut at a word, UTF-8 safe
-          auto cut = [](std::string s, size_t m) {
-            if (s.size() <= m) return s;
-            size_t p = s.rfind(' ', m); if (p == std::string::npos || p < m / 2) p = m;
-            while (p > 0 && (s[p] & 0xC0) == 0x80) p--;
-            return s.substr(0, p) + "\u2026";
-          };
-          std::string t = n ? cut(v[ix], 40) : std::string(L == 1 ? "No favourites" : "No albums");
-          std::string a = (L == 2 && ix < (int) id(art_v).size()) ? id(art_v)[ix] : std::string("");
-          lv_label_set_text((lv_obj_t *) id(pl_st), t.c_str());
-          lv_label_set_text((lv_obj_t *) id(pl_sa), a.c_str());
-          vis((lv_obj_t *) id(pl_sa), !a.empty());
-          lv_obj_t *rows[4] = {(lv_obj_t *) id(pl_r0), (lv_obj_t *) id(pl_r1), (lv_obj_t *) id(pl_r2), (lv_obj_t *) id(pl_r3)};
-          int off[4] = {-2, -1, 1, 2};
-          for (int i = 0; i < 4; i++) {
-            int j = ix + off[i];
-            lv_label_set_text(rows[i], (j >= 0 && j < n) ? v[j].c_str() : "");
-          }
-          char c[24]; snprintf(c, sizeof(c), n ? "%d / %d" : "", ix + 1, n);
-          lv_label_set_text((lv_obj_t *) id(pl_cnt), c);
-      - lambda: |-
-          if (id(pl_list) != 0) return;
-          static image::Image *const ic[7] = {id(icon_disco), id(icon_house), id(icon_mos), id(icon_pdm), id(icon_dfp), id(icon_fav), id(icon_alb)};
-          static const char *const n[7] = {"Disco", "House", "MOS", "PDM", "DFP", "Favourites", "Albums"};
-          int s = id(pl_sel);
-          lv_image_set_src((lv_obj_t *) id(pl_c_icon), ic[s]->get_lv_image_dsc());
-          lv_image_set_src((lv_obj_t *) id(pl_l_icon), ic[(s + 6) % 7]->get_lv_image_dsc());
-          lv_image_set_src((lv_obj_t *) id(pl_r_icon), ic[(s + 1) % 7]->get_lv_image_dsc());
-          lv_label_set_text((lv_obj_t *) id(pl_name), n[s]);
-          lv_obj_t *d[7] = {(lv_obj_t *) id(pd0), (lv_obj_t *) id(pd1), (lv_obj_t *) id(pd2), (lv_obj_t *) id(pd3),
-                            (lv_obj_t *) id(pd4), (lv_obj_t *) id(pd5), (lv_obj_t *) id(pd6)};
-          for (int i = 0; i < 7; i++)
-            lv_obj_set_style_bg_opa(d[i], i == s ? LV_OPA_COVER : LV_OPA_20, LV_PART_MAIN);
-
-  - id: pl_play
-    then:
-      - if:
-          condition: {lambda: 'return id(pl_list) != 0;'}
-          then:
-            - if:
-                condition: {lambda: 'return (id(pl_list) == 1 ? id(fav_v).size() : id(alb_v).size()) > 0;'}
-                then:
-                  - homeassistant.action:
-                      action: script.rotary_play_list
-                      data:
-                        kind: !lambda 'return std::string(id(pl_list) == 1 ? "fav" : "album");'
-                        idx: !lambda 'return to_string(id(pl_list) == 1 ? id(fav_idx) : id(alb_idx));'
-                  - script.execute: switch_to_now
-          else:
-            - if:
-                condition: {lambda: 'return id(pl_sel) >= 5;'}
-                then:
-                  - lambda: 'id(pl_list) = id(pl_sel) - 4;'
-                  - script.execute: pl_render
-                  - script.execute: page_timeout
-                else:
-                  - script.execute: pl_play_mix
-
-  - id: pl_play_mix
-    then:
-      - homeassistant.action:
-          action: script.turn_on
-          data:
-            entity_id: !lambda |-
-              static const char *const s[] = {"script.play_disco", "script.play_house",
-                "script.play_mos", "script.play_pdm", "script.play_dfp"};
-              return std::string(s[id(pl_sel)]);
-      - script.execute: switch_to_now
 
 
 interval:
@@ -1142,18 +1699,16 @@ interval:
             id(pos_s) += 1;
             if (id(dur_s) > 0 && id(pos_s) > id(dur_s)) id(pos_s) = id(dur_s);
           }
+          int pv = id(dur_s) > 0 ? (int) (id(pos_s) * 1000.0f / id(dur_s)) : 0;
+          if (pv != lv_arc_get_value((lv_obj_t *) id(noc_prog))) lv_arc_set_value((lv_obj_t *) id(noc_prog), pv);
   # --- album art: retry a failed download
   - interval: 30s
     then:
       - if:
-          # at most 3 retries per image: a network blip recovers, a progressive
-          # JPEG (unsupported by the decoder) never will
-          condition:
-            lambda: |-
-              if (id(art_ok) || id(art_key).empty()) return false;
-              if (id(art_retry_key) != id(art_key)) { id(art_retry_key) = id(art_key); id(art_retries) = 0; }
-              return id(art_retries)++ < 3;
-          then: [{component.update: album_blur}]
+          condition: {lambda: 'return !id(art_ok) && !id(art_key).empty() && id(art_tries) < 2;'}
+          then:
+            - lambda: 'id(art_tries)++;'
+            - component.update: album_blur
 time:
   - platform: homeassistant
     id: ha_time
@@ -1196,6 +1751,10 @@ binary_sensor:
       inverted: true
     on_press:
       - lambda: 'id(turned_while_held) = false;'
+      - script.execute: hold_hint_start
+    on_release:
+      - script.execute: hold_hint_end
+    # press = play/pause · double = next · triple = previous · hold = stop everywhere
     on_multi_click:
       - timing:
           - ON for at most 400ms
@@ -1204,33 +1763,23 @@ binary_sensor:
           - OFF for at most 400ms
           - ON for at most 400ms
           - OFF for at least 400ms
-        then:
-          - script.execute: screen_timeout_timer
-          - if:
-              condition: {lambda: 'return id(current_mode) == 0;'}
-              then:
-                - homeassistant.action: {action: media_player.media_previous_track, data: {entity_id: media_player.club}}
+        then: [{script.execute: knob_prev}]
       - timing:
           - ON for at most 400ms
           - OFF for at most 400ms
           - ON for at most 400ms
           - OFF for at least 400ms
-        then:
-          - script.execute: screen_timeout_timer
-          - if:
-              condition: {lambda: 'return id(current_mode) == 0;'}
-              then:
-                - homeassistant.action: {action: media_player.media_next_track, data: {entity_id: media_player.club}}
+        then: [{script.execute: knob_next}]
       - timing:
-          - ON for 50ms to 400ms
+          - ON for 50ms to 500ms
           - OFF for at least 400ms
         then:
           - if:
               condition: {lambda: 'return !id(turned_while_held);'}
               then: [{script.execute: knob_press}]
-      # long press fires on release, so hold + turn (scrub) doesn't also trigger it
+      # fires on release, so hold + turn (scrub) never stops the music
       - timing:
-          - ON for at least 600ms
+          - ON for at least 800ms
           - OFF for at least 20ms
         then:
           - if:
@@ -1253,28 +1802,77 @@ sensor:
 
   - platform: homeassistant
     id: ha_media_volume
-    entity_id: media_player.club
+    entity_id: ${player}
     attribute: volume_level
     on_value:
       then:
         - lambda: |-
             if (isnan(x)) return;
-            if (millis() - id(vol_touched_ms) > 2500) id(vol_local) = x;
+            if (millis() - id(vol_touched_ms) > 2500) { id(vol_local) = x; id(vol_sent) = x; }
 
   - platform: homeassistant
     id: ha_media_pos
-    entity_id: media_player.club
+    entity_id: ${player}
     attribute: media_position
     on_value:
       then:
         - lambda: 'if (!isnan(x) && millis() - id(seek_touched_ms) > 2500) id(pos_s) = x;'
   - platform: homeassistant
     id: ha_media_dur
-    entity_id: media_player.club
+    entity_id: ${player}
     attribute: media_duration
     on_value:
       then:
         - lambda: 'id(dur_s) = isnan(x) ? 0 : x;'
+        - script.execute: update_np
+
+  # --- home pages
+  - platform: homeassistant
+    id: ha_ac_target
+    entity_id: climate.aircon
+    attribute: temperature
+    on_value:
+      then:
+        - lambda: 'if (!isnan(x) && millis() - id(ac_touched_ms) > 3000) id(ac_set) = (int) roundf(x);'
+        - script.execute: home_render
+  - platform: homeassistant
+    id: ha_ac_room
+    entity_id: climate.aircon
+    attribute: current_temperature
+    on_value:
+      then:
+        - lambda: 'id(ac_room) = x;'
+        - script.execute: home_render
+  - platform: homeassistant
+    id: ha_bl0_pos
+    entity_id: cover.blinds
+    attribute: current_position
+    on_value:
+      then:
+        - lambda: |-
+            if (isnan(x)) return;
+            id(bl_pos0) = 100 - (int) roundf(x);           // inverted
+            if (id(bl_dir0) == 0 && millis() - id(bl_touched_ms) > 3000) id(bl_tgt0) = id(bl_pos0);
+        - script.execute: home_render
+  - platform: homeassistant
+    id: ha_bl1_pos
+    entity_id: cover.sheer_blinds
+    attribute: current_position
+    on_value:
+      then:
+        - lambda: |-
+            if (isnan(x)) return;
+            id(bl_pos1) = (int) roundf(x);
+            if (id(bl_dir1) == 0 && millis() - id(bl_touched_ms) > 3000) id(bl_tgt1) = id(bl_pos1);
+        - script.execute: home_render
+  - platform: homeassistant
+    id: ha_li_bri
+    entity_id: light.ckub_all
+    attribute: brightness
+    on_value:
+      then:
+        - lambda: 'if (!isnan(x) && millis() - id(li_touched_ms) > 3000) id(li_bri) = (int) roundf(x * 100.0f / 255.0f);'
+        - script.execute: home_render
 
 button:
   - platform: restart
@@ -1288,26 +1886,51 @@ touchscreen:
     # fail the chip-ID probe, so don't let the probe disable touch
     skip_probe: true
     on_touch:
-      - lambda: 'id(tx0) = touch.x; id(ty0) = touch.y; id(tx1) = touch.x; id(ty1) = touch.y;'
+      - lambda: 'id(tx0) = touch.x; id(tx1) = touch.x; id(ty0) = touch.y; id(ty1) = touch.y;'
       # the CST816 throws phantom touches at the (479,479) corner every minute or two;
-      # anything outside the round glass must not wake the screen
+      # anything outside the round glass must not wake the screen. Taps do nothing else.
       - if:
           condition:
             lambda: 'int dx = touch.x - 240, dy = touch.y - 240; return dx * dx + dy * dy < 236 * 236;'
-          then: [{script.execute: screen_timeout_timer}]
+          then:
+            - lambda: 'id(user_wake) = true;'
+            - script.execute: screen_timeout_timer
+            - script.execute: pick_check
+            - if:
+                condition: {lambda: 'return id(current_mode) == 0 && !id(night_active) && id(pick_ok);'}
+                then: [{script.execute: open_picker}]
     on_update:
       - lambda: 'for (auto &t : touches) { id(tx1) = t.x; id(ty1) = t.y; break; }'
     on_release:
-      - lambda: |-
-          int dx = id(tx1) - id(tx0), dy = id(ty1) - id(ty0);
-          int sw = 0;
-          if (abs(dx) > 60 && abs(dx) > abs(dy) * 1.3f) sw = dx < 0 ? 1 : 2;
-          else if (abs(dy) > 70 && abs(dy) > abs(dx) * 1.3f) sw = dy < 0 ? 3 : 4;
-          id(swipe) = sw;
-          if (sw) id(swipe_ms) = millis();
+      # coffee-table knob: swipe left / right moves between pages (menu: highlight, Scenes: browse)
       - if:
-          condition: {lambda: 'return id(swipe) != 0 && !id(night_active);'}
-          then: [{script.execute: swipe_act}]
+          condition:
+            lambda: |-
+              int dx = id(tx1) - id(tx0), dy = id(ty1) - id(ty0);
+              int m = id(current_mode);
+              return ${has_home} && abs(dx) > 60 && abs(dx) > abs(dy) && (m == 0 || m == 5 || (m >= 20 && m <= 24));
+          then:
+            - lambda: |-
+                id(swipe_ms) = millis();
+                int d = id(tx1) < id(tx0) ? 1 : -1, m = id(current_mode);
+                auto cl = [](int v, int a, int b) { return v < a ? a : (v > b ? b : v); };
+                id(htp) = -1;
+                if (m == 0 || m == 5) { if (d > 0) id(htp) = 1; }
+                else if (m == 20) id(hm_sel) = cl(id(hm_sel) + d, 0, 3);
+                else if (m == 24) id(sc_idx) = cl(id(sc_idx) + d, 0, 6);
+                else { int p = cl(m - 20 + d, 0, 3); if (p != m - 20) id(htp) = p; }
+            - if:
+                condition: {lambda: 'return id(htp) >= 0;'}
+                then: [{script.execute: {id: home_enter, page: !lambda 'return id(htp);'}}]
+                else:
+                  - script.execute: home_render
+                  - script.execute: home_timeout
+      # picker (bedroom knob): swipe left / right to browse
+      - if:
+          condition: {lambda: 'return !${has_home} && id(current_mode) == 5 && abs(id(tx1) - id(tx0)) > 60;'}
+          then:
+            - lambda: 'id(swipe_ms) = millis();'
+            - script.execute: {id: pick_move, dir: !lambda 'return id(tx1) < id(tx0) ? 1 : -1;'}
 
 spi:
   clk_pin: 2
@@ -1403,27 +2026,27 @@ font:
     id: mr_a14
     size: 14
     bpp: 4
-    glyphs: " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·:-'&.,!?()/ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝàáâãäåæçèéêëìíîïñòóôõöøùúûüýÿßŒœ’…"
+    glyphs: " +ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·:-'&.,!?()/°%ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝàáâãäåæçèéêëìíîïñòóôõöøùúûüýÿßŒœ’…"
   - file: "gfonts://Manrope@400"
-    id: mr_20                  # night title, playlist rows, default
+    id: mr_20                  # night title, default
     size: 20
     bpp: 4
     glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝàáâãäåæçèéêëìíîïñòóôõöøùúûüýÿßŒœ‘’“”–—·…"
   - file: "gfonts://Syne@700"
-    id: hk_22                  # BÆOREMOTE wordmark
+    id: hk_22                  # BÆOSOUND wordmark: BÆO bold
     size: 22
     bpp: 4
-    glyphs: "BÆOREMT"
+    glyphs: "BÆO"
+  - file: "gfonts://Syne@400"
+    id: hk_22l                 # ...SOUND regular
+    size: 22
+    bpp: 4
+    glyphs: "SOUND"
   - file: "gfonts://Syne@700"
     id: hk_16
     size: 18
     bpp: 4
-    glyphs: " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·:-'&.,!?()/ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝàáâãäåæçèéêëìíîïñòóôõöøùúûüýÿßŒœ’…"
-  - file: "gfonts://Syne@600"
-    id: hk_12
-    size: 13
-    bpp: 4
-    glyphs: "0123456789/ "
+    glyphs: " +ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·:-'&.,!?()/°%ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝàáâãäåæçèéêëìíîïñòóôõöøùúûüýÿßŒœ’…"
   - file: "gfonts://Syne@500"
     id: hk_clock
     size: 40
@@ -1434,11 +2057,27 @@ font:
     size: 32
     bpp: 4
     glyphs: " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝàáâãäåæçèéêëìíîïñòóôõöøùúûüýÿßŒœ‘’“”–—·…"
-  - file: "gfonts://Syne@400"
-    id: hk_40
-    size: 40
+  # --- home pages (coffee-table knob)
+  - file: "gfonts://Manrope@300"
+    id: mr_84                  # aircon setpoint, same face as the volume numeral
+    size: 84
     bpp: 4
-    glyphs: "DiscoHueMOSPFavrtAlbm"
+    glyphs: "0123456789"
+  - file: "gfonts://Manrope@300"
+    id: mr_deg                 # its degree sign, hung outside so the digits centre
+    size: 36
+    bpp: 4
+    glyphs: "°"
+  - file: "gfonts://Manrope@700"
+    id: mr_h38                 # page headlines: menu words, blind state, scene
+    size: 38
+    bpp: 4
+    glyphs: " %0123456789BCHLMNOSTWadefghiklmnoprsty"
+  - file: "gfonts://Manrope@700"
+    id: mr_b18                 # chips and blind stops
+    size: 18
+    bpp: 4
+    glyphs: " %0257ACDEFGHILMNOQRSTUWYdelnops"
 
 text_sensor:
   # --- work alarm (mirrors Home Assistant)
@@ -1480,11 +2119,14 @@ text_sensor:
             then: [{script.execute: alarm_refresh_text}]
   - platform: homeassistant
     id: media_title
-    entity_id: media_player.club
+    entity_id: ${player}
     attribute: media_title
     on_value:
       then:
-        - lambda: 'id(media_is_tv) = (x == std::string("TV") || x == std::string("TV Audio"));'
+        - lambda: 'id(media_is_tv) = ${has_tv} && (x == std::string("TV") || x == std::string("TV Audio"));'
+        - if:
+            condition: {lambda: 'return id(media_playing) && !id(media_is_tv) && id(current_mode) == 5;'}
+            then: [{script.execute: switch_to_now}]
         - script.execute: tv_refresh
         # back from the TV: put the music artwork back
         - if:
@@ -1493,8 +2135,8 @@ text_sensor:
                 if (id(media_is_tv) || id(art_key).rfind("tv:", 0) != 0) return false;
                 const std::string &pic = id(media_picture).state;
                 if (pic.empty() || pic[0] != '/') return false;
-                size_t p = pic.find("cache=");
-                id(art_key) = p == std::string::npos ? pic : pic.substr(p);
+                id(art_key) = pic;
+                id(art_tries) = 0;
                 return true;
             then:
               - online_image.set_url:
@@ -1508,22 +2150,32 @@ text_sensor:
         - script.execute: apply_awake_brightness
   - platform: homeassistant
     id: media_artist
-    entity_id: media_player.club
+    entity_id: ${player}
     attribute: media_artist
     on_value:
       then: [{script.execute: update_np}]
   - platform: homeassistant
     id: media_state
-    entity_id: media_player.club
+    entity_id: ${player}
     on_value:
       then:
-        - lambda: 'id(media_playing) = (x == std::string("playing"));'
+        - lambda: |-
+            id(media_playing) = (x == std::string("playing"));
+            if (x != "paused") id(paused_ms) = 0;
+            if (id(media_playing)) id(pick_started_ms) = 0;
+            else if (id(paused_ms) == 0) id(paused_ms) = millis();
         - script.execute: update_np
+        # music started (not the TV): the picker has done its job
+        - if:
+            condition: {lambda: 'return id(media_playing) && !id(media_is_tv) && id(current_mode) == 5;'}
+            then: [{script.execute: switch_to_now}]
+        # play/pause changes the idle behaviour (dim vs night clock): restart the timer
+        - script.execute: screen_timeout_timer
   # Album art: HA's proxy URL carries a rotating token plus a "cache=" hash of
   # the artwork; only refetch when that hash changes.
   - platform: homeassistant
     id: media_picture
-    entity_id: media_player.club
+    entity_id: ${player}
     attribute: entity_picture
     on_value:
       then:
@@ -1531,10 +2183,9 @@ text_sensor:
             condition:
               lambda: |-
                 if (id(media_is_tv) || x.empty() || x[0] != '/') return false;
-                size_t p = x.find("cache=");
-                std::string k = p == std::string::npos ? x : x.substr(p);
-                if (k == id(art_key)) return false;
-                id(art_key) = k;
+                if (x == id(art_key)) return false;
+                id(art_key) = x;
+                id(art_tries) = 0;
                 return true;
             then:
               - online_image.set_url:
@@ -1606,37 +2257,6 @@ text_sensor:
     entity_id: media_player.club_android_tv_10_0_0_248_club_tv
     on_value:
       then: [{script.execute: tv_refresh}]
-  # Playlists page lists, flattened by the HA package rotary_lists.yaml
-  - platform: homeassistant
-    id: rl_favs
-    entity_id: sensor.rotary_lists
-    attribute: fav_names
-    on_value:
-      then:
-        - lambda: |-
-            id(fav_v) = [&] { std::vector<std::string> v; if (x.empty()) return v; size_t s = 0; for (;;) { size_t p = x.find('|', s); v.push_back(x.substr(s, p == std::string::npos ? std::string::npos : p - s)); if (p == std::string::npos) return v; s = p + 1; } }();
-        - if:
-            condition: {lambda: 'return id(current_mode) == 6;'}
-            then: [{script.execute: pl_render}]
-  - platform: homeassistant
-    id: rl_albums
-    entity_id: sensor.rotary_lists
-    attribute: album_names
-    on_value:
-      then:
-        - lambda: |-
-            id(alb_v) = [&] { std::vector<std::string> v; if (x.empty()) return v; size_t s = 0; for (;;) { size_t p = x.find('|', s); v.push_back(x.substr(s, p == std::string::npos ? std::string::npos : p - s)); if (p == std::string::npos) return v; s = p + 1; } }();
-        - if:
-            condition: {lambda: 'return id(current_mode) == 6;'}
-            then: [{script.execute: pl_render}]
-  - platform: homeassistant
-    id: rl_artists
-    entity_id: sensor.rotary_lists
-    attribute: album_artists
-    on_value:
-      then:
-        - lambda: |-
-            id(art_v) = [&] { std::vector<std::string> v; if (x.empty()) return v; size_t s = 0; for (;;) { size_t p = x.find('|', s); v.push_back(x.substr(s, p == std::string::npos ? std::string::npos : p - s)); if (p == std::string::npos) return v; s = p + 1; } }();
   # which app the Streamer has in front (ABC iview shows as just "ABC")
   - platform: homeassistant
     id: tv_atv_app
@@ -1644,17 +2264,69 @@ text_sensor:
     attribute: app_id
     on_value:
       then: [{script.execute: tv_refresh}]
+  # --- home pages: aircon, blinds, lights
   - platform: homeassistant
-    id: club_group
-    entity_id: media_player.club
+    id: ha_ac_state
+    entity_id: climate.aircon
+    on_value:
+      then:
+        - lambda: |-
+            id(ac_mode) = x;
+            if (x != "off" && x != "unknown" && x != "unavailable" && !x.empty()) id(ac_last_mode) = x;
+        - script.execute: home_render
+  - platform: homeassistant
+    id: ha_ac_fan
+    entity_id: climate.aircon
+    attribute: fan_mode
+    on_value:
+      then:
+        - lambda: 'id(ac_fan) = x;'
+        - script.execute: home_render
+  # cover.blinds (Sofa) reports inverted: "opening" means it is physically closing
+  - platform: homeassistant
+    id: ha_bl0_state
+    entity_id: cover.blinds
+    on_value:
+      then:
+        - lambda: |-
+            id(bl_dir0) = x == "opening" ? -1 : (x == "closing" ? 1 : 0);
+            if (id(bl_dir0) == 0 && millis() - id(bl_touched_ms) > 3000) id(bl_tgt0) = id(bl_pos0);
+        - script.execute: home_render
+  - platform: homeassistant
+    id: ha_bl1_state
+    entity_id: cover.sheer_blinds
+    on_value:
+      then:
+        - lambda: |-
+            id(bl_dir1) = x == "opening" ? 1 : (x == "closing" ? -1 : 0);
+            if (id(bl_dir1) == 0 && millis() - id(bl_touched_ms) > 3000) id(bl_tgt1) = id(bl_pos1);
+        - script.execute: home_render
+  - platform: homeassistant
+    id: ha_li_state
+    entity_id: light.ckub_all
+    on_value:
+      then:
+        - lambda: 'id(li_on) = x == "on";'
+        - script.execute: home_render
+  # rooms grouped with this player, for the line under the clock
+  - platform: homeassistant
+    id: room_group
+    entity_id: ${player}
     attribute: group_members
     on_value:
       then:
         - lambda: |-
-            static const char *const e[] = {"media_player.club", "media_player.living_room_sonos", "media_player.office_sonos", "media_player.bathroom_sonos", "media_player.bedroom_sonos"};
-            int m = 1;
-            for (int i = 1; i < 5; i++) if (x.find(e[i]) != std::string::npos) m |= 1 << i;
-            id(sp_mask) = m;
+            static const char *const ent[] = {"media_player.club", "media_player.unnamed_room_5", "media_player.office_sonos",
+                                              "media_player.bathroom_sonos", "media_player.bedroom_sonos"};
+            static const char *const nm[] = {"CLUB", "LIVING ROOM", "OFFICE", "BATHROOM", "BEDROOM"};
+            std::string others; int n = 0;
+            for (int i = 0; i < 5; i++)
+              if (std::string(ent[i]) != "${player}" && x.find(ent[i]) != std::string::npos) { n++; others = nm[i]; }
+            std::string r = "${room_name}";
+            if (n == 1) r += " + " + others;
+            else if (n > 1) r += " + " + to_string(n) + " ROOMS";
+            id(room_txt) = r;
+        - script.execute: update_np
 
 lvgl:
   top_layer:
@@ -1844,10 +2516,24 @@ lvgl:
           scrollbar_mode: "OFF"
           widgets:
             - canvas: {id: nt_cv, align: TOP_LEFT, x: 0, y: 0, width: 480, height: 480}
-            - label: {id: nt_title, text: "", align: CENTER, y: -112, width: 320, height: 28, long_mode: DOT, text_align: CENTER, text_font: mr_20, text_color: 0xA56444}
-            - label: {id: nt_artist, text: "", align: CENTER, y: -86, width: 300, height: 20, long_mode: DOT, text_align: CENTER, text_font: mr_a14, text_letter_space: 3, text_color: 0xA56444}
-            - label: {id: night_clock_lbl, text: "--:--", align: CENTER, y: 0, text_font: mr_num, text_color: 0xB8704A}
-            - label: {text: "BÆOREMOTE", align: CENTER, y: 120, text_font: hk_22, text_letter_space: 7, text_color: 0xA56444}
+            - label: {id: nt_title, text: "", align: CENTER, y: -112, width: 320, height: 28, long_mode: DOT, text_align: CENTER, text_font: mr_20, text_color: 0x8CBDB5}
+            - label: {id: nt_artist, text: "", align: CENTER, y: -86, width: 300, height: 20, long_mode: DOT, text_align: CENTER, text_font: mr_a14, text_letter_space: 3, text_color: 0x8CBDB5}
+            - label: {id: night_clock_lbl, text: "--:--", align: CENTER, y: 0, text_font: mr_num, text_color: 0xA7B4B1}
+
+            - obj:
+                align: CENTER
+                y: 120
+                width: SIZE_CONTENT
+                height: SIZE_CONTENT
+                bg_opa: 0
+                border_width: 0
+                pad_all: 0
+                clickable: false
+                scrollable: false
+                layout: {type: flex, flex_flow: ROW, flex_align_cross: END, pad_column: 7}
+                widgets:
+                  - label: {text: "BÆO", text_font: hk_22, text_letter_space: 7, text_color: 0x5D6B68, text_opa: 100%}
+                  - label: {text: "SOUND", text_font: hk_22l, text_letter_space: 7, text_color: 0x5D6B68, text_opa: 100%}
   displays:
     - my_display
   touchscreens:
@@ -1886,9 +2572,15 @@ lvgl:
             widgets:
               - canvas: {id: noc_bg, align: TOP_LEFT, x: 0, y: 0, width: 480, height: 480, image_opa: 70%}
               - canvas: {id: noc_vig, align: TOP_LEFT, x: 0, y: 0, width: 480, height: 480, transparent: true}
+              # Blinds page: the shades drawn down the glass (sheer behind, sofa blackout in front)
+              - obj: {id: sh_sheer, hidden: true, align: TOP_MID, y: 0, width: 480, height: 0, radius: 0, pad_all: 0, bg_color: 0xEDF2EF, bg_opa: 12%, border_side: BOTTOM, border_width: 2, border_color: 0xEDF2EF, border_opa: 35%, clickable: false, scrollable: false}
+              - obj: {id: sh_sofa, hidden: true, align: TOP_MID, y: 0, width: 480, height: 0, radius: 0, pad_all: 0, bg_color: 0x040608, bg_opa: 68%, border_side: BOTTOM, border_width: 3, border_color: 0xEDF2EF, border_opa: 28%, clickable: false, scrollable: false}
               - arc: {id: noc_glow, align: CENTER, width: 462, height: 462, rotation: 270, start_angle: 0, end_angle: 360, min_value: 0, max_value: 100, value: 30, adjustable: false, clickable: false, arc_width: 12, arc_opa: 0, indicator: {arc_width: 12, arc_color: 0xE9EDF2, arc_opa: 14%, arc_rounded: true}, knob: {bg_opa: 0}}
               - arc: {id: noc_ring, align: CENTER, width: 462, height: 462, rotation: 270, start_angle: 0, end_angle: 360, min_value: 0, max_value: 100, value: 30, adjustable: false, clickable: false, arc_width: 2, arc_color: 0xFFFFFF, arc_opa: 12%, indicator: {arc_width: 2, arc_color: 0xF2F4F7, arc_rounded: true}, knob: {bg_opa: 0}}
+              # track progress: a faint hairline just inside the glass, hidden for radio / TV
+              - arc: {id: noc_prog, hidden: true, align: CENTER, width: 432, height: 432, rotation: 270, start_angle: 0, end_angle: 360, min_value: 0, max_value: 1000, value: 0, adjustable: false, clickable: false, arc_width: 1, arc_color: 0xFFFFFF, arc_opa: 6%, indicator: {arc_width: 1, arc_color: 0xE9EDF2, arc_opa: 38%, arc_rounded: false}, knob: {bg_opa: 0}}
               - label: {id: noc_clk, text: "--:--", align: TOP_MID, y: 70, text_font: hk_clock, text_letter_space: 3, text_color: 0xE9EDF2, text_opa: 75%}
+              - label: {id: noc_room, text: "", align: TOP_MID, y: 124, width: 300, long_mode: DOT, text_align: CENTER, text_font: hk_16, text_letter_space: 4, text_color: 0xE9EDF2, text_opa: 45%}
               - obj:
                   align: CENTER
                   y: 0
@@ -1904,128 +2596,9 @@ lvgl:
                     - label: {id: noc_title, text: "", width: 350, long_mode: WRAP, text_align: CENTER, text_font: hk_32, text_color: 0xF6F6F4}
                     - label: {id: noc_artist, text: "", width: 320, long_mode: DOT, text_align: CENTER, text_font: hk_16, text_letter_space: 4, text_color: 0xE9EDF2, text_opa: 75%}
               - label: {id: noc_num, hidden: true, text: "", align: CENTER, text_font: mr_num, text_color: 0xF6F6F4}
-              - label: {text: "BÆOREMOTE", align: CENTER, y: 122, text_font: hk_22, text_letter_space: 7, text_color: 0xE9EDF2, text_opa: 70%}
-        # ── PLAYLISTS page
-        - obj:
-            id: grp_pl
-            scrollable: false
-            hidden: true
-            align: CENTER
-            width: 480
-            height: 480
-            radius: 0
-            bg_color: 0x2A2B2F
-            bg_grad_color: 0x0B0B0D
-            bg_grad_dir: VER
-            border_width: 0
-            pad_all: 0
-            scrollbar_mode: "OFF"
-            widgets:
-              - label: {id: pl_head, text: "PLAYLISTS", align: CENTER, y: -150, text_font: hk_16, text_color: 0xD6D8DC, text_letter_space: 5}
-              - button:
-                  align: TOP_MID
-                  y: 16
-                  width: 56
-                  height: 56
-                  radius: 28
-                  bg_color: 0x1B1C1F
-                  border_width: 1
-                  border_color: 0xC9CBCF
-                  border_opa: 30%
-                  on_click: [{script.execute: pl_back}]
-                  widgets:
-                    - label: {id: pl_x, text: "\uF00D", align: CENTER, text_font: montserrat_20, text_color: 0xD6D8DC}
-              - button:
-                  id: pl_lb
-                  align: CENTER
-                  x: -150
-                  y: -16
-                  width: 104
-                  height: 104
-                  radius: 52
-                  bg_opa: 0
-                  border_width: 0
-                  opa: 40%
-                  on_click:
-                    - script.execute: screen_timeout_timer
-                    - lambda: 'id(pl_sel) = (id(pl_sel) + 6) % 7;'
-                    - script.execute: pl_render
-                    - script.execute: page_timeout
-                  widgets:
-                    - image: {src: pl_disc_140, align: CENTER, scale: 0.72}
-                    - image: {id: pl_l_icon, src: icon_alb, align: CENTER, scale: 0.72}
-              - button:
-                  id: pl_rb
-                  align: CENTER
-                  x: 150
-                  y: -16
-                  width: 104
-                  height: 104
-                  radius: 52
-                  bg_opa: 0
-                  border_width: 0
-                  opa: 40%
-                  on_click:
-                    - script.execute: screen_timeout_timer
-                    - lambda: 'id(pl_sel) = (id(pl_sel) + 1) % 7;'
-                    - script.execute: pl_render
-                    - script.execute: page_timeout
-                  widgets:
-                    - image: {src: pl_disc_140, align: CENTER, scale: 0.72}
-                    - image: {id: pl_r_icon, src: icon_house, align: CENTER, scale: 0.72}
-              - button:
-                  id: pl_cb
-                  align: CENTER
-                  y: -16
-                  width: 144
-                  height: 144
-                  radius: 72
-                  bg_opa: 0
-                  border_width: 0
-                  on_click:
-                    - script.execute: screen_timeout_timer
-                    - script.execute: pl_play
-                  widgets:
-                    - image: {src: pl_disc_140, align: CENTER}
-                    - image: {id: pl_c_icon, src: icon_disco, align: CENTER}
-              - label: {id: pl_name, text: "Disco", align: CENTER, y: 84, text_font: hk_40, text_color: 0xF2F2F0}
+
               - obj:
-                  id: pl_dots
-                  align: CENTER
-                  y: 124
-                  width: 112
-                  height: 8
-                  bg_opa: 0
-                  border_width: 0
-                  pad_all: 0
-                  scrollable: false
-                  widgets:
-                    - obj: {id: pd0, align: CENTER, x: -48, width: 8, height: 8, radius: 4, bg_color: 0xD6D8DC, border_width: 0}
-                    - obj: {id: pd1, align: CENTER, x: -32, width: 8, height: 8, radius: 4, bg_color: 0xD6D8DC, border_width: 0}
-                    - obj: {id: pd2, align: CENTER, x: -16, width: 8, height: 8, radius: 4, bg_color: 0xD6D8DC, border_width: 0}
-                    - obj: {id: pd3, align: CENTER, x: 0, width: 8, height: 8, radius: 4, bg_color: 0xD6D8DC, border_width: 0}
-                    - obj: {id: pd4, align: CENTER, x: 16, width: 8, height: 8, radius: 4, bg_color: 0xD6D8DC, border_width: 0}
-                    - obj: {id: pd5, align: CENTER, x: 32, width: 8, height: 8, radius: 4, bg_color: 0xD6D8DC, border_width: 0}
-                    - obj: {id: pd6, align: CENTER, x: 48, width: 8, height: 8, radius: 4, bg_color: 0xD6D8DC, border_width: 0}
-              - button:
-                  id: pl_ug
-                  align: CENTER
-                  y: 176
-                  width: 230
-                  height: 40
-                  radius: 20
-                  bg_color: 0x1B1C1F
-                  border_width: 1
-                  border_color: 0xC9CBCF
-                  border_opa: 30%
-                  on_click:
-                    - script.execute: screen_timeout_timer
-                    - script.execute: ungroup_all
-                  widgets:
-                    - label: {id: pl_ug_lbl, text: "UNGROUP ALL ROOMS", align: CENTER, text_font: hk_16, text_letter_space: 2, text_color: 0xD6D8DC}
-              # Favourites / Albums: a knob-driven wheel, the chosen row large in the middle
-              - obj:
-                  id: pl_listv
+                  id: pk_grp
                   hidden: true
                   align: CENTER
                   width: 480
@@ -2036,25 +2609,203 @@ lvgl:
                   scrollable: false
                   clickable: false
                   widgets:
-                    - label: {id: pl_r0, align: CENTER, y: -128, width: 280, height: 26, long_mode: DOT, text_align: CENTER, text_font: mr_20, text_color: 0xF2F2F0, text_opa: 22%}
-                    - label: {id: pl_r1, align: CENTER, y: -88, width: 320, height: 26, long_mode: DOT, text_align: CENTER, text_font: mr_20, text_color: 0xF2F2F0, text_opa: 48%}
                     - obj:
+                        id: pk_l
                         align: CENTER
-                        y: -4
-                        width: 360
-                        height: SIZE_CONTENT
-                        bg_opa: 0
-                        border_width: 0
+                        x: -152
+                        y: 4
+                        width: 108
+                        height: 108
+                        radius: 54
+                        bg_color: 0x0B0B0C
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0x34343A
                         pad_all: 0
                         scrollable: false
-                        layout: {type: FLEX, flex_flow: COLUMN, flex_align_cross: CENTER, flex_align_track: CENTER, pad_row: 6}
-                        on_click: [{script.execute: screen_timeout_timer}, {script.execute: pl_play}]
+                        opa: 45%
+                        on_click: [{script.execute: {id: pick_tap, which: -1}}]
                         widgets:
-                          - label: {id: pl_st, width: 360, long_mode: WRAP, text_align: CENTER, text_font: hk_32, text_color: 0xF2F2F0, text: ""}
-                          - label: {id: pl_sa, width: 320, height: 26, long_mode: DOT, text_align: CENTER, text_font: mr_20, text_color: 0xD6D8DC, text_opa: 70%, text: ""}
-                    - label: {id: pl_r2, align: CENTER, y: 88, width: 320, height: 26, long_mode: DOT, text_align: CENTER, text_font: mr_20, text_color: 0xF2F2F0, text_opa: 48%}
-                    - label: {id: pl_r3, align: CENTER, y: 128, width: 280, height: 26, long_mode: DOT, text_align: CENTER, text_font: mr_20, text_color: 0xF2F2F0, text_opa: 22%}
-                    - label: {id: pl_cnt, align: CENTER, y: 168, text: "", text_font: hk_12, text_letter_space: 2, text_color: 0xD6D8DC, text_opa: 55%}
+                          - obj: {align: CENTER, width: 98, height: 98, radius: 49, bg_opa: 0, border_width: 1, border_color: 0xFFFFFF, border_opa: 7%, pad_all: 0, clickable: false, scrollable: false}
+                          - obj: {align: CENTER, width: 86, height: 86, radius: 43, bg_opa: 0, border_width: 1, border_color: 0xFFFFFF, border_opa: 7%, pad_all: 0, clickable: false, scrollable: false}
+                          - obj: {align: CENTER, width: 74, height: 74, radius: 37, bg_opa: 0, border_width: 1, border_color: 0xFFFFFF, border_opa: 7%, pad_all: 0, clickable: false, scrollable: false}
+                          - arc: {align: CENTER, width: 100, height: 100, start_angle: 205, end_angle: 245, value: 0, adjustable: false, clickable: false, arc_width: 17, arc_color: 0xFFFFFF, arc_opa: 6%, arc_rounded: false, indicator: {arc_opa: 0}, knob: {bg_opa: 0}}
+                          - arc: {align: CENTER, width: 100, height: 100, start_angle: 25, end_angle: 65, value: 0, adjustable: false, clickable: false, arc_width: 17, arc_color: 0xFFFFFF, arc_opa: 6%, arc_rounded: false, indicator: {arc_opa: 0}, knob: {bg_opa: 0}}
+                          - image: {id: pk_l_cv, src: cv_pdm_london, align: CENTER, scale: 0.58, clickable: false}
+                          - obj: {align: CENTER, width: 4, height: 4, radius: 2, bg_color: 0x0B0B0C, border_width: 1, border_color: 0x55555C, pad_all: 0, clickable: false}
+                    - obj:
+                        id: pk_r
+                        align: CENTER
+                        x: 152
+                        y: 4
+                        width: 108
+                        height: 108
+                        radius: 54
+                        bg_color: 0x0B0B0C
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0x34343A
+                        pad_all: 0
+                        scrollable: false
+                        opa: 45%
+                        on_click: [{script.execute: {id: pick_tap, which: 1}}]
+                        widgets:
+                          - obj: {align: CENTER, width: 98, height: 98, radius: 49, bg_opa: 0, border_width: 1, border_color: 0xFFFFFF, border_opa: 7%, pad_all: 0, clickable: false, scrollable: false}
+                          - obj: {align: CENTER, width: 86, height: 86, radius: 43, bg_opa: 0, border_width: 1, border_color: 0xFFFFFF, border_opa: 7%, pad_all: 0, clickable: false, scrollable: false}
+                          - obj: {align: CENTER, width: 74, height: 74, radius: 37, bg_opa: 0, border_width: 1, border_color: 0xFFFFFF, border_opa: 7%, pad_all: 0, clickable: false, scrollable: false}
+                          - arc: {align: CENTER, width: 100, height: 100, start_angle: 205, end_angle: 245, value: 0, adjustable: false, clickable: false, arc_width: 17, arc_color: 0xFFFFFF, arc_opa: 6%, arc_rounded: false, indicator: {arc_opa: 0}, knob: {bg_opa: 0}}
+                          - arc: {align: CENTER, width: 100, height: 100, start_angle: 25, end_angle: 65, value: 0, adjustable: false, clickable: false, arc_width: 17, arc_color: 0xFFFFFF, arc_opa: 6%, arc_rounded: false, indicator: {arc_opa: 0}, knob: {bg_opa: 0}}
+                          - image: {id: pk_r_cv, src: cv_pdm_london, align: CENTER, scale: 0.58, clickable: false}
+                          - obj: {align: CENTER, width: 4, height: 4, radius: 2, bg_color: 0x0B0B0C, border_width: 1, border_color: 0x55555C, pad_all: 0, clickable: false}
+                    - obj:
+                        id: pk_c
+                        align: CENTER
+                        x: 0
+                        y: 4
+                        width: 176
+                        height: 176
+                        radius: 88
+                        bg_color: 0x0B0B0C
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0x34343A
+                        pad_all: 0
+                        scrollable: false
+                        opa: 100%
+                        shadow_width: 34
+                        shadow_color: 0x000000
+                        shadow_opa: 55%
+                        shadow_ofs_y: 6
+                        on_click: [{script.execute: {id: pick_tap, which: 0}}]
+                        widgets:
+                          - obj: {align: CENTER, width: 166, height: 166, radius: 83, bg_opa: 0, border_width: 1, border_color: 0xFFFFFF, border_opa: 7%, pad_all: 0, clickable: false, scrollable: false}
+                          - obj: {align: CENTER, width: 154, height: 154, radius: 77, bg_opa: 0, border_width: 1, border_color: 0xFFFFFF, border_opa: 7%, pad_all: 0, clickable: false, scrollable: false}
+                          - obj: {align: CENTER, width: 142, height: 142, radius: 71, bg_opa: 0, border_width: 1, border_color: 0xFFFFFF, border_opa: 7%, pad_all: 0, clickable: false, scrollable: false}
+                          - obj: {align: CENTER, width: 130, height: 130, radius: 65, bg_opa: 0, border_width: 1, border_color: 0xFFFFFF, border_opa: 7%, pad_all: 0, clickable: false, scrollable: false}
+                          - obj: {align: CENTER, width: 118, height: 118, radius: 59, bg_opa: 0, border_width: 1, border_color: 0xFFFFFF, border_opa: 7%, pad_all: 0, clickable: false, scrollable: false}
+                          - obj: {align: CENTER, width: 106, height: 106, radius: 53, bg_opa: 0, border_width: 1, border_color: 0xFFFFFF, border_opa: 7%, pad_all: 0, clickable: false, scrollable: false}
+                          - arc: {align: CENTER, width: 168, height: 168, start_angle: 205, end_angle: 245, value: 0, adjustable: false, clickable: false, arc_width: 28, arc_color: 0xFFFFFF, arc_opa: 6%, arc_rounded: false, indicator: {arc_opa: 0}, knob: {bg_opa: 0}}
+                          - arc: {align: CENTER, width: 168, height: 168, start_angle: 25, end_angle: 65, value: 0, adjustable: false, clickable: false, arc_width: 28, arc_color: 0xFFFFFF, arc_opa: 6%, arc_rounded: false, indicator: {arc_opa: 0}, knob: {bg_opa: 0}}
+                          - image: {id: pk_c_cv, src: cv_pdm_london, align: CENTER, scale: 1.0, clickable: false}
+                          - obj: {align: CENTER, width: 6, height: 6, radius: 3, bg_color: 0x0B0B0C, border_width: 1, border_color: 0x55555C, pad_all: 0, clickable: false}
+              - obj:
+                  id: grp_menu
+                  hidden: true
+                  align: CENTER
+                  width: 480
+                  height: 480
+                  bg_opa: 0
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  widgets:
+                    - label: {id: hm_cur, text: "Climate", align: CENTER, x: 0, y: -4, text_font: mr_h38, text_color: 0xEDF2EF, text_opa: 100%, text_align: CENTER, clickable: false}
+                    - label: {id: hm_prev, text: "Media", align: CENTER, x: -160, y: -4, text_font: mr_20, text_color: 0xEDF2EF, text_opa: 40%, text_align: CENTER, clickable: false}
+                    - label: {id: hm_next, text: "Blinds", align: CENTER, x: 160, y: -4, text_font: mr_20, text_color: 0xEDF2EF, text_opa: 40%, text_align: CENTER, clickable: false}
+                    - label: {id: hm_stat, text: "", align: CENTER, x: 0, y: 38, text_font: mr_a14, text_color: 0xEDF2EF, text_opa: 70%, text_align: CENTER, clickable: false, text_letter_space: 3, width: 340, long_mode: DOT}
+                    - label: {id: hm_hint, text: "TURN · PRESS TO OPEN", align: CENTER, x: 0, y: 92, text_font: mr_a14, text_color: 0xEDF2EF, text_opa: 45%, text_align: CENTER, clickable: false, text_letter_space: 3}
+                    - obj: {align: CENTER, x: -160, y: 0, width: 120, height: 220, bg_opa: 0, border_width: 0, pad_all: 0, scrollable: false, on_click: [{script.execute: {id: home_tap, which: 1}}]}
+                    - obj: {align: CENTER, x: 0, y: 0, width: 180, height: 220, bg_opa: 0, border_width: 0, pad_all: 0, scrollable: false, on_click: [{script.execute: {id: home_tap, which: 2}}]}
+                    - obj: {align: CENTER, x: 160, y: 0, width: 120, height: 220, bg_opa: 0, border_width: 0, pad_all: 0, scrollable: false, on_click: [{script.execute: {id: home_tap, which: 3}}]}
+              - obj:
+                  id: grp_clim
+                  hidden: true
+                  align: CENTER
+                  width: 480
+                  height: 480
+                  bg_opa: 0
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  widgets:
+                    - label: {id: hc_title, text: "AIRCON", align: CENTER, x: 0, y: -128, text_font: mr_a14, text_color: 0xEDF2EF, text_opa: 50%, text_align: CENTER, clickable: false, text_letter_space: 3}
+                    - label: {id: hc_big, text: "23", align: CENTER, x: 0, y: -28, text_font: mr_84, text_color: 0xEDF2EF, text_opa: 100%, text_align: CENTER, clickable: false}
+                    - label: {id: hc_deg, text: "°", align: CENTER, x: 52, y: -56, text_font: mr_deg, text_color: 0xEDF2EF, clickable: false}
+                    - label: {id: hc_state, text: "Off · press to start", align: CENTER, x: 0, y: 30, text_font: mr_20, text_color: 0xEDF2EF, text_opa: 100%, text_align: CENTER, clickable: false}
+                    - label: {id: hc_room, text: "", align: CENTER, x: 0, y: 28, text_font: mr_a14, text_color: 0xEDF2EF, text_opa: 50%, text_align: CENTER, clickable: false, text_letter_space: 3}
+                    - obj: {id: hc_mode, align: CENTER, x: -64, y: 104, width: SIZE_CONTENT, height: SIZE_CONTENT, pad_top: 7, pad_bottom: 7, pad_left: 16, pad_right: 16, radius: 24, bg_color: 0xEDF2EF, bg_opa: 8%, border_width: 1, border_color: 0xEDF2EF, border_opa: 32%, scrollable: false, layout: {type: flex, flex_flow: ROW, flex_align_main: CENTER, flex_align_cross: CENTER}, on_click: [{script.execute: {id: home_tap, which: 10}}], widgets: [{label: {id: hc_mode_l, text: "COOL", text_font: mr_b18, text_letter_space: 1, text_color: 0xEDF2EF, clickable: false}}]}
+                    - obj: {id: hc_fan, align: CENTER, x: 66, y: 104, width: SIZE_CONTENT, height: SIZE_CONTENT, pad_top: 7, pad_bottom: 7, pad_left: 16, pad_right: 16, radius: 24, bg_color: 0xEDF2EF, bg_opa: 8%, border_width: 1, border_color: 0xEDF2EF, border_opa: 32%, scrollable: false, layout: {type: flex, flex_flow: ROW, flex_align_main: CENTER, flex_align_cross: CENTER}, on_click: [{script.execute: {id: home_tap, which: 11}}], widgets: [{label: {id: hc_fan_l, text: "FAN AUTO", text_font: mr_b18, text_letter_space: 1, text_color: 0xEDF2EF, clickable: false}}]}
+              - obj:
+                  id: grp_blind
+                  hidden: true
+                  align: CENTER
+                  width: 480
+                  height: 480
+                  bg_opa: 0
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  widgets:
+                    - obj: {align: CENTER, x: -138, y: 163, width: 6, height: 6, radius: 3, bg_color: 0xEDF2EF, bg_opa: 55%, border_width: 0, clickable: false}
+                    - obj: {align: CENTER, x: -201, y: -74, width: 6, height: 6, radius: 3, bg_color: 0xEDF2EF, bg_opa: 55%, border_width: 0, clickable: false}
+                    - obj: {align: CENTER, x: 0, y: -214, width: 6, height: 6, radius: 3, bg_color: 0xEDF2EF, bg_opa: 55%, border_width: 0, clickable: false}
+                    - obj: {align: CENTER, x: 201, y: -74, width: 6, height: 6, radius: 3, bg_color: 0xEDF2EF, bg_opa: 55%, border_width: 0, clickable: false}
+                    - obj: {align: CENTER, x: 138, y: 163, width: 6, height: 6, radius: 3, bg_color: 0xEDF2EF, bg_opa: 55%, border_width: 0, clickable: false}
+                    - obj: {id: hb_s0, align: CENTER, x: -120, y: 142, width: SIZE_CONTENT, height: SIZE_CONTENT, pad_top: 5, pad_bottom: 5, pad_left: 11, pad_right: 11, radius: 16, bg_color: 0x0A0D0F, bg_opa: 45%, border_width: 0, scrollable: false, ext_click_area: 12, layout: {type: flex, flex_flow: ROW, flex_align_main: CENTER, flex_align_cross: CENTER}, on_click: [{script.execute: {id: home_tap, which: 30}}], widgets: [{label: {id: hb_s0_l, text: "Closed", text_font: mr_b18, text_color: 0xEDF2EF, text_opa: 82%, clickable: false}}]}
+                    - obj: {id: hb_s1, align: CENTER, x: -175, y: -64, width: SIZE_CONTENT, height: SIZE_CONTENT, pad_top: 5, pad_bottom: 5, pad_left: 11, pad_right: 11, radius: 16, bg_color: 0x0A0D0F, bg_opa: 45%, border_width: 0, scrollable: false, ext_click_area: 12, layout: {type: flex, flex_flow: ROW, flex_align_main: CENTER, flex_align_cross: CENTER}, on_click: [{script.execute: {id: home_tap, which: 31}}], widgets: [{label: {id: hb_s1_l, text: "25%", text_font: mr_b18, text_color: 0xEDF2EF, text_opa: 82%, clickable: false}}]}
+                    - obj: {id: hb_s2, align: CENTER, x: 0, y: -186, width: SIZE_CONTENT, height: SIZE_CONTENT, pad_top: 5, pad_bottom: 5, pad_left: 11, pad_right: 11, radius: 16, bg_color: 0x0A0D0F, bg_opa: 45%, border_width: 0, scrollable: false, ext_click_area: 12, layout: {type: flex, flex_flow: ROW, flex_align_main: CENTER, flex_align_cross: CENTER}, on_click: [{script.execute: {id: home_tap, which: 32}}], widgets: [{label: {id: hb_s2_l, text: "50%", text_font: mr_b18, text_color: 0xEDF2EF, text_opa: 82%, clickable: false}}]}
+                    - obj: {id: hb_s3, align: CENTER, x: 175, y: -64, width: SIZE_CONTENT, height: SIZE_CONTENT, pad_top: 5, pad_bottom: 5, pad_left: 11, pad_right: 11, radius: 16, bg_color: 0x0A0D0F, bg_opa: 45%, border_width: 0, scrollable: false, ext_click_area: 12, layout: {type: flex, flex_flow: ROW, flex_align_main: CENTER, flex_align_cross: CENTER}, on_click: [{script.execute: {id: home_tap, which: 33}}], widgets: [{label: {id: hb_s3_l, text: "75%", text_font: mr_b18, text_color: 0xEDF2EF, text_opa: 82%, clickable: false}}]}
+                    - obj: {id: hb_s4, align: CENTER, x: 120, y: 142, width: SIZE_CONTENT, height: SIZE_CONTENT, pad_top: 5, pad_bottom: 5, pad_left: 11, pad_right: 11, radius: 16, bg_color: 0x0A0D0F, bg_opa: 45%, border_width: 0, scrollable: false, ext_click_area: 12, layout: {type: flex, flex_flow: ROW, flex_align_main: CENTER, flex_align_cross: CENTER}, on_click: [{script.execute: {id: home_tap, which: 34}}], widgets: [{label: {id: hb_s4_l, text: "Open", text_font: mr_b18, text_color: 0xEDF2EF, text_opa: 82%, clickable: false}}]}
+                    - label: {id: hb_title, text: "BLINDS", align: CENTER, x: 0, y: -90, text_font: mr_a14, text_color: 0xEDF2EF, text_opa: 50%, text_align: CENTER, clickable: false, text_letter_space: 3}
+                    - label: {id: hb_head, text: "Open", align: CENTER, x: 0, y: -26, text_font: mr_h38, text_color: 0xEDF2EF, text_opa: 100%, text_align: CENTER, clickable: false}
+                    - label: {id: hb_sub, text: "", align: CENTER, x: 0, y: 16, text_font: mr_a14, text_color: 0xEDF2EF, text_opa: 62%, text_align: CENTER, clickable: false, text_letter_space: 3}
+                    - obj: {id: hb_sofa, align: CENTER, x: -74, y: 80, width: SIZE_CONTENT, height: SIZE_CONTENT, pad_top: 11, pad_bottom: 11, pad_left: 28, pad_right: 28, radius: 24, bg_color: 0xEDF2EF, bg_opa: 8%, border_width: 1, border_color: 0xEDF2EF, border_opa: 32%, scrollable: false, layout: {type: flex, flex_flow: ROW, flex_align_main: CENTER, flex_align_cross: CENTER}, on_click: [{script.execute: {id: home_tap, which: 20}}], widgets: [{label: {id: hb_sofa_l, text: "SOFA", text_font: mr_b18, text_letter_space: 1, text_color: 0xEDF2EF, clickable: false}}]}
+                    - obj: {id: hb_sheer, align: CENTER, x: 74, y: 80, width: SIZE_CONTENT, height: SIZE_CONTENT, pad_top: 11, pad_bottom: 11, pad_left: 28, pad_right: 28, radius: 24, bg_color: 0xEDF2EF, bg_opa: 8%, border_width: 1, border_color: 0xEDF2EF, border_opa: 32%, scrollable: false, layout: {type: flex, flex_flow: ROW, flex_align_main: CENTER, flex_align_cross: CENTER}, on_click: [{script.execute: {id: home_tap, which: 21}}], widgets: [{label: {id: hb_sheer_l, text: "SHEER", text_font: mr_b18, text_letter_space: 1, text_color: 0xEDF2EF, clickable: false}}]}
+              - obj:
+                  id: grp_light
+                  hidden: true
+                  align: CENTER
+                  width: 480
+                  height: 480
+                  bg_opa: 0
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  widgets:
+                    - label: {id: hl_title, text: "CLUB LIGHTS", align: CENTER, x: 0, y: -128, text_font: mr_a14, text_color: 0xEDF2EF, text_opa: 50%, text_align: CENTER, clickable: false, text_letter_space: 3}
+                    - label: {id: hl_head, text: "On", align: CENTER, x: 0, y: -28, text_font: mr_h38, text_color: 0xEDF2EF, text_opa: 100%, text_align: CENTER, clickable: false}
+                    - label: {id: hl_sub, text: "", align: CENTER, x: 0, y: 14, text_font: mr_a14, text_color: 0xEDF2EF, text_opa: 62%, text_align: CENTER, clickable: false, text_letter_space: 3}
+                    - obj: {id: hl_scn, align: CENTER, x: 0, y: 80, width: SIZE_CONTENT, height: SIZE_CONTENT, pad_top: 7, pad_bottom: 7, pad_left: 16, pad_right: 16, radius: 24, bg_color: 0xEDF2EF, bg_opa: 8%, border_width: 1, border_color: 0xEDF2EF, border_opa: 32%, scrollable: false, layout: {type: flex, flex_flow: ROW, flex_align_main: CENTER, flex_align_cross: CENTER}, on_click: [{script.execute: {id: home_tap, which: 40}}], widgets: [{label: {id: hl_scn_l, text: "SCENES", text_font: mr_b18, text_letter_space: 1, text_color: 0xEDF2EF, clickable: false}}]}
+              - obj:
+                  id: grp_scene
+                  hidden: true
+                  align: CENTER
+                  width: 480
+                  height: 480
+                  bg_opa: 0
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  widgets:
+                    - label: {id: sc_title, text: "SCENES", align: CENTER, x: 0, y: -128, text_font: mr_a14, text_color: 0xEDF2EF, text_opa: 50%, text_align: CENTER, clickable: false, text_letter_space: 3}
+                    - obj: {id: sc_l, align: CENTER, x: -136, y: -8, width: 88, height: 88, radius: 44, bg_color: 0xE3ACA4, bg_grad_color: 0x33596A, bg_grad_dir: VER, bg_opa: COVER, border_width: 4, border_color: 0x0B0D0E, pad_all: 0, scrollable: false, on_click: [{script.execute: {id: home_tap, which: 50}}]}
+                    - obj: {id: sc_r, align: CENTER, x: 136, y: -8, width: 88, height: 88, radius: 44, bg_color: 0xE3ACA4, bg_grad_color: 0x33596A, bg_grad_dir: VER, bg_opa: COVER, border_width: 4, border_color: 0x0B0D0E, pad_all: 0, scrollable: false, on_click: [{script.execute: {id: home_tap, which: 52}}]}
+                    - obj: {id: sc_c, align: CENTER, x: 0, y: -8, width: 152, height: 152, radius: 76, bg_color: 0xE3ACA4, bg_grad_color: 0x33596A, bg_grad_dir: VER, bg_opa: COVER, border_width: 6, border_color: 0x0B0D0E, pad_all: 0, scrollable: false, on_click: [{script.execute: {id: home_tap, which: 51}}]}
+                    - label: {id: sc_name, text: "Tokyo", align: CENTER, x: 0, y: 100, text_font: hk_32, text_color: 0xEDF2EF, text_opa: 100%, text_align: CENTER, clickable: false}
+              - obj:
+                  id: noc_wm
+                  align: CENTER
+                  y: 122
+                  width: SIZE_CONTENT
+                  height: SIZE_CONTENT
+                  bg_opa: 0
+                  border_width: 0
+                  pad_all: 0
+                  clickable: false
+                  scrollable: false
+                  layout: {type: flex, flex_flow: ROW, flex_align_cross: END, pad_column: 7}
+                  widgets:
+                    - label: {text: "BÆO", text_font: hk_22, text_letter_space: 7, text_color: 0xE9EDF2, text_opa: 70%}
+                    - label: {text: "SOUND", text_font: hk_22l, text_letter_space: 7, text_color: 0xE9EDF2, text_opa: 70%}
+              - obj: {id: hd_0, hidden: true, align: CENTER, x: -46, y: 215, width: 8, height: 8, radius: 4, bg_color: 0xEDF2EF, bg_opa: 26%, border_width: 0, clickable: false}
+              - obj: {id: hd_1, hidden: true, align: CENTER, x: -15, y: 219, width: 8, height: 8, radius: 4, bg_color: 0xEDF2EF, bg_opa: 26%, border_width: 0, clickable: false}
+              - obj: {id: hd_2, hidden: true, align: CENTER, x: 15, y: 219, width: 8, height: 8, radius: 4, bg_color: 0xEDF2EF, bg_opa: 26%, border_width: 0, clickable: false}
+              - obj: {id: hd_3, hidden: true, align: CENTER, x: 46, y: 215, width: 8, height: 8, radius: 4, bg_color: 0xEDF2EF, bg_opa: 26%, border_width: 0, clickable: false}
 
 number:
   - platform: template
@@ -2072,6 +2823,19 @@ number:
     unit_of_measurement: "px"
     on_value:
       then: [{script.execute: apply_offset}]
+  - platform: template
+    id: return_after
+    name: "Return to Media after"
+    icon: "mdi:timer-sand"
+    entity_category: config
+    mode: slider
+    min_value: 5
+    max_value: 120
+    step: 5
+    initial_value: 20
+    optimistic: true
+    restore_value: true
+    unit_of_measurement: "s"
   - platform: template
     id: night_brightness
     name: "Night Brightness"

@@ -12,7 +12,7 @@ sequenceDiagram
   HA->>House: +10 min (daytime): Roborock cleans, then the SL68 (twice)
   Note over HA,House: While away: radar intruder alert, the camera switches on<br/>(only while I'm away) and AI describes its clips, door-unlocked alert
   Me->>House: Fingerprint on the keypad unlocks the door
-  Note over Me,House: Extra backup systems are in place
+  Note over Me,House: Extra backup systems are in place (kept private)
   HA->>House: Locks 30 s after the door closes
 ```
 
@@ -30,6 +30,10 @@ sequenceDiagram
       minutes: 5
     trigger: state
   conditions:
+  - condition: state
+    entity_id: input_boolean.guests_staying
+    state: 'off'
+    alias: Guest mode (Bae away) is off
   - alias: Auto-stay is off (party mode suspends this)
     condition: state
     entity_id: input_boolean.auto_stay
@@ -88,17 +92,23 @@ sequenceDiagram
   - action: lock.lock
     target:
       entity_id: lock.lock_pro_0fa0
-  - action: script.turn_on
-    target:
-      entity_id: script.notify_bae
-    data:
-      variables:
-        title: Front door locked
-        message: You left and it was still unlocked — locked it for you.
-        data:
-          channel: Front door
-          importance: default
-          tag: front_door_away_autolock
+  - alias: Not while guests are staying (Bae away)
+    if:
+    - condition: state
+      entity_id: input_boolean.guests_staying
+      state: 'off'
+    then:
+    - action: script.turn_on
+      target:
+        entity_id: script.notify_bae
+      data:
+        variables:
+          title: Front door locked
+          message: You left and it was still unlocked — locked it for you.
+          data:
+            channel: Front door
+            importance: default
+            tag: front_door_away_autolock
   mode: single
 ```
 
@@ -676,6 +686,10 @@ sl68_smart_clean_once:
     for: 00:01:00
   conditions:
   - condition: state
+    entity_id: input_boolean.guests_staying
+    state: 'off'
+    alias: Guest mode (Bae away) is off
+  - condition: state
     entity_id: input_boolean.away_mode
     state: 'on'
   - condition: state
@@ -684,7 +698,7 @@ sl68_smart_clean_once:
   - condition: not
     conditions:
     - condition: state
-      entity_id: device_tracker.motorola_razr_50
+      entity_id: device_tracker.pixel_10a
       state: home
   - alias: Not just the Roborock (unless a door moved in the last 10 min)
     condition: template
@@ -719,20 +733,9 @@ sl68_smart_clean_once:
 </details>
 
 
-### When someone's minding the flat
-
-If friends stay while I'm away, the flat is never really empty, so "away" would do all the wrong things:
-lights, TV and aircon off, the robots out, an intruder alert the moment someone walks in. A guest mode
-(`input_boolean.guests_staying`) starts on a set date and ends once I'm home again on or after the end date.
-While it's on, away mode never arms (and is switched off if it already was), the intruder and attic camera
-alerts stand down, and my phone stops getting the washer, doorbell and routine door pushes. The door still
-locks itself, and the faults I'd want to hear about anyway (door sensors disagreeing, the bolt failing to
-re-lock, a leak) still come through. Guests get their own keypad code, and the Nest Hubs gained plain light
-scenes for them. See [`guests_staying.yaml`](../config/packages/guests_staying.yaml).
-
 ## Coming home
 I let myself in with a fingerprint on the keypad. There are extra backup systems in place behind it,
-and the automations below make sure the door always ends up locked again.
+which I'm keeping private, and the automations below make sure the door always ends up locked again.
 
 ## The front door, belt and braces
 The lock is a SwitchBot Lock Pro with a fingerprint keypad and a separate Zigbee contact sensor.

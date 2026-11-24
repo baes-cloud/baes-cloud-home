@@ -7,6 +7,10 @@
 #   All off  -> every room light in the house
 #   Night    -> everything off except a dim path: kitchen floor, couch glow, bathroom mirror
 #
+# Left out on purpose (2026-11-06): Send noods + Grindr (balcony neon, own button + schedule),
+# the xxxmas lights (follow the Hue Play bars on/off, scene never changed), and the under-couch
+# light only gets brightness, never a colour, so it keeps whatever colour it has.
+#
 # Every light call has continue_on_error, so one offline light never stops a scene.
 
 script:
@@ -28,11 +32,8 @@ script:
             - light.kitchen_console_candles
             - light.kitchen_art
             - light.tv_art_lights
-            - light.club_accent_chair_lights
             - light.bedroom_cupboard_light_ueb
-            - light.lasco_wifi_fairy_lights_2
             - light.couch
-            - light.couchh
             - light.hue_play_1
             - light.hue_play_2
             - light.hue_play_3
@@ -73,7 +74,6 @@ script:
             - light.kitchen_console_candles
             - light.kitchen_art
             - light.tv_art_lights
-            - light.club_accent_chair_lights
             - light.bedroom_cupboard_light_ueb
         continue_on_error: true
       - action: light.turn_on
@@ -89,8 +89,8 @@ script:
         continue_on_error: true
       - action: light.turn_on
         target:
-          entity_id: [light.couch, light.couchh]
-        data: { color_temp_kelvin: 4000, brightness_pct: 100 }
+          entity_id: light.couch
+        data: { brightness_pct: 100 }
         continue_on_error: true
 
   scene_morning:
@@ -123,8 +123,6 @@ script:
             - light.kitchen_kitchen_floor
             - light.bar_lights
             - light.tv_art_lights
-            - light.club_accent_chair_lights
-            - light.lasco_wifi_fairy_lights_2
         continue_on_error: true
       - action: light.turn_on
         target:
@@ -139,8 +137,8 @@ script:
         continue_on_error: true
       - action: light.turn_on
         target:
-          entity_id: [light.couch, light.couchh]
-        data: { color_temp_kelvin: 3300, brightness_pct: 50 }
+          entity_id: light.couch
+        data: { brightness_pct: 50 }
         continue_on_error: true
 
   scene_lamps:
@@ -167,7 +165,6 @@ script:
             - light.kitchen_console_candles
             - light.kitchen_art
             - light.tv_art_lights
-            - light.club_accent_chair_lights
             - light.bedroom_cupboard_light_ueb
         continue_on_error: true
       - action: light.turn_on
@@ -183,8 +180,8 @@ script:
         continue_on_error: true
       - action: light.turn_on
         target:
-          entity_id: [light.couch, light.couchh]
-        data: { color_temp_kelvin: 2700, brightness_pct: 35 }
+          entity_id: light.couch
+        data: { brightness_pct: 35 }
         continue_on_error: true
 
   scene_movie:
@@ -203,10 +200,7 @@ script:
             - light.bar_lights
             - light.kitchen_art
             - light.tv_art_lights
-            - light.club_accent_chair_lights
             - light.bedroom_cupboard_light_ueb
-            - light.lasco_wifi_fairy_lights_2
-            - light.couchh
             - light.hue_lightstrip_1
             - light.home_hue_omniglow_striplight_1
             - light.home_hue_flux_strip_light_1
@@ -223,7 +217,7 @@ script:
       - action: light.turn_on
         target:
           entity_id: light.couch
-        data: { color_temp_kelvin: 2700, brightness_pct: 8 }
+        data: { brightness_pct: 8 }
         continue_on_error: true
 
   scene_party:
@@ -249,7 +243,6 @@ script:
             - light.bar_lights
             - light.kitchen_console_candles
             - light.tv_art_lights
-            - light.club_accent_chair_lights
             - light.bedroom_cupboard_light_ueb
         continue_on_error: true
       - action: light.turn_on
@@ -267,16 +260,6 @@ script:
         target:
           entity_id: light.couch
         data: { hs_color: [300, 100], brightness_pct: 100 }
-        continue_on_error: true
-      - action: light.turn_on
-        target:
-          entity_id: light.couchh
-        data: { effect: Party }
-        continue_on_error: true
-      - action: light.turn_on
-        target:
-          entity_id: light.lasco_wifi_fairy_lights_2
-        data: { effect: Scene }
         continue_on_error: true
 
   scene_xmas:
@@ -303,7 +286,6 @@ script:
             - light.kitchen_console_candles
             - light.kitchen_art
             - light.tv_art_lights
-            - light.club_accent_chair_lights
             - light.bedroom_cupboard_light_ueb
         continue_on_error: true
       - action: light.turn_on
@@ -326,16 +308,6 @@ script:
           entity_id: light.couch
         data: { hs_color: [0, 100], brightness_pct: 60 }
         continue_on_error: true
-      - action: light.turn_on
-        target:
-          entity_id: light.couchh
-        data: { effect: Christmas }
-        continue_on_error: true
-      - action: light.turn_on
-        target:
-          entity_id: light.lasco_wifi_fairy_lights_2
-        data: { hs_color: [0, 100] }
-        continue_on_error: true
 
   scene_night_light:
     alias: "Scene · Night light"
@@ -351,7 +323,7 @@ script:
       - action: light.turn_on
         target:
           entity_id: light.couch
-        data: { color_temp_kelvin: 2200, brightness_pct: 5 }
+        data: { brightness_pct: 5 }
         continue_on_error: true
       - action: light.turn_on
         target:

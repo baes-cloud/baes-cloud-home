@@ -7,14 +7,15 @@ template:
       # off = the Companion app positively says away AND Bermuda BLE does not say home.
       # delay_off swallows brief Bermuda reload blips. Used by every away/home
       # automation instead of person.bae. Added by Claude 2026-09-13.
+      # 2026-11-22: BLE side is now the Pixel 10a's own beacon (Razr retired).
       - name: Bae home
         unique_id: bae_home_combined
         device_class: presence
         delay_off: "00:00:30"
         state: >-
-          {%- set gps = states('device_tracker.motorola_razr_50') -%}
-          {%- set ble = states('device_tracker.bermuda_razr_bermuda_tracker') -%}
+          {%- set gps = states('device_tracker.pixel_10a') -%}
+          {%- set ble = states('device_tracker.bermuda_pixel_10a_bermuda_tracker') -%}
           {{ not (gps not in ['home', 'unknown', 'unavailable'] and ble != 'home') }}
         attributes:
-          companion_app: "{{ states('device_tracker.motorola_razr_50') }}"
-          bermuda_ble: "{{ states('device_tracker.bermuda_razr_bermuda_tracker') }}"
+          companion_app: "{{ states('device_tracker.pixel_10a') }}"
+          bermuda_ble: "{{ states('device_tracker.bermuda_pixel_10a_bermuda_tracker') }}"

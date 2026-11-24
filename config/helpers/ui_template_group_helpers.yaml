@@ -14,6 +14,12 @@ template_helpers:
     | int(0)) == 0 %}{% set still_there = is_state(''binary_sensor.club_apollo_r_pro_1_ld2412_presence'',''on'')
     %}{{ rmm or (this.state == ''on'' and lost and still_there) }}'
   device_class: occupancy
+- name: Bæo night
+  type: binary_sensor
+  state: '{% set n = now() %}{% set h = n.hour + n.minute / 60 %}{% set wd = n.weekday() %}{% set wake = 9 if wd
+    in [5, 6] else 7 %}{% set bed = 23 if wd in [4, 5] else 21 %}{{ is_state(''sun.sun'', ''below_horizon'') or
+    h < wake or h >= bed }}'
+  device_class: null
 light_groups:
 - name: 'Bar lights '
   type: light
@@ -22,18 +28,13 @@ light_groups:
 - name: 'Hue play '
   type: light
   entities:
+  - light.hue_play_1
   - light.hue_play_2
   - light.hue_play_3
-  - light.hue_play_1
-  - light.club_accent_chair_lights
-  - light.couchh
 - name: Club Accent Lights
   type: light
   entities:
-  - light.couch
   - light.hue_play
-  - light.club_accent_chair_lights
-  - light.couchh
 - name: Club led Group
   type: light
   entities:
@@ -54,6 +55,7 @@ light_groups:
   entities:
   - light.bed_lamp_left
   - light.bed_lamp_right
+  - light.bedroom_candles
 - name: bathlightsall
   type: light
   entities:
@@ -106,6 +108,19 @@ light_groups:
   entities:
   - light.bedroom_cupboard_light_ueb
   - light.kitchen_art
+- name: xxxmas
+  type: light
+  entities:
+  - light.lasco_wifi_fairy_lights_2
+  - light.couchh
+  - light.hue_play_1
+  - light.hue_play_2
+  - light.hue_play_3
+- name: neon
+  type: light
+  entities:
+  - light.club_accent_chair_lights
+  - light.grindr
 switch_as_x:
 - name: '0xbc8d7efffe00e38f'
   source: switch.kitchen_floor
@@ -118,4 +133,7 @@ switch_as_x:
   as: light
 - name: Bedroom Heater
   source: switch.bedroom_led
+  as: light
+- name: grillplats_plug
+  source: switch.grillplats_plug
   as: light

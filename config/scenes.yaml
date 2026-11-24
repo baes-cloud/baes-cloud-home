@@ -6,7 +6,6 @@
       - onoff
       color_mode:
       entity_id:
-      - light.bar_dog
       - light.bar_spotlights
       icon: mdi:lightbulb-group
       friendly_name: 'Bar lights '
@@ -181,7 +180,6 @@
       - onoff
       color_mode: onoff
       entity_id:
-      - light.bar_dog
       - light.bar_spotlights
       icon: mdi:lightbulb-group
       friendly_name: 'Bar lights '
@@ -399,36 +397,14 @@
       - onoff
       color_mode: onoff
       entity_id:
-      - light.bar_dog
       - light.bar_spotlights
       icon: mdi:lightbulb-group
       friendly_name: 'Bar lights '
       supported_features: 0
       state: 'on'
     light.couch:
-      min_color_temp_kelvin: 15
-      max_color_temp_kelvin: 6535
-      supported_color_modes:
-      - color_temp
-      - hs
-      - xy
-      color_mode: color_temp
-      brightness: 255
-      color_temp_kelvin: 6535
-      hs_color:
-      - 54.768
-      - 1.6
-      rgb_color:
-      - 255
-      - 255
-      - 251
-      xy_color:
-      - 0.325
-      - 0.333
-      icon: mdi:sofa-outline
-      friendly_name: under couch
-      supported_features: 32
       state: 'on'
+      brightness: 255
     light.hue_play:
       min_color_temp_kelvin: 2000
       max_color_temp_kelvin: 6535

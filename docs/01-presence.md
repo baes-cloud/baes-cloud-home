@@ -44,66 +44,6 @@ And the real thing, live on the remote:
 The exported map (zones, radar positions, tracking settings) is in
 [`config/rmm/radar_map_manager.json`](../config/rmm/radar_map_manager.json).
 
-## One person, two, or a crowd: presence through a day
-The same sensors behave differently depending on who's home and what time it is. Four more
-mock-ups, built the same way (generator:
-[`tools/make_presence_scenes.py`](../tools/make_presence_scenes.py)). Teal is me, pink is a
-guest, grey rings are people the radar can't take on, and the round grey things are robots.
-
-**A weekday morning, on my own.** The alarm comes from my work calendar, the flat wakes up when
-I get out of bed, the shower is a "standing still is fine" zone, the news follows me from the
-bathroom to the lounge, and everything switches off after I've left.
-
-![Weekday morning](../images/rmm/presence-morning.gif)
-
-**An evening with a friend over.** Two people on the radar for 10 minutes switches on guest
-mode by itself. That stops the house mistaking a quiet film for me falling asleep, and stops
-the music following me out of the room and leaving my friend in silence. Once I've been on my
-own for 30 minutes it switches off again, and normal rules (including "fell asleep on the sofa,
-lights off") come back.
-
-![Evening, two people](../images/rmm/presence-evening-guest.gif)
-
-**A party.** Each LD2450 tracks at most three people, so in a crowd the count tops out. That's
-fine, because party mode is a switch, not a count: it pauses the room lights, scenes, the door's
-auto-lock and announcements, away mode and the robots, but keeps the bathroom light and music
-follow-me going. If I forget it, the house reminds me at 10 am.
-
-![Party night](../images/rmm/presence-party.gif)
-
-**Out for the day.** Away mode needs GPS *and* Bluetooth to agree. The robots look exactly like
-people to the radar, so while one is cleaning the radar automations pause and the intruder alert
-ignores the radar. They head home to their docks when I'm about a kilometre away.
-
-![Out for the day](../images/rmm/presence-away-robot.gif)
-
-## Radar replay: rewinding the radar
-Live dots are great until something odd happens at 3 am and you want to know why. **Radar
-Replay** records every radar track and lets me scrub back through the last 48 hours like a
-video. Google's Antigravity built the first version; Claude Code looks after it now. It has
-its own repo: [ha-rmm-replay](https://github.com/baes-cloud/ha-rmm-replay).
-
-![Radar Replay](../images/replay/demo-replay.gif)
-
-- **A recorder** listens to Radar Map Manager's live feed and saves positions only when
-  something changes: about twice a second while someone moves, a keyframe every 15 seconds while
-  they sit still, and once a minute when the flat is empty. It keeps all of that out of Home Assistant's own
-  database, so 48 hours of history fits in a few megabytes.
-- **A dashboard card** (also a standalone page) plays it back on the floorplan with each
-  person's trail. Pick a window from 15 minutes to 48 hours, play at up to 60×, skip the quiet
-  stretches, or jump straight to the previous or next move.
-- **Layers** show each radar's field of view, the RMM zones, the lights, and a heatmap of where
-  people spend their time.
-- **Down the side:** the exact position and which radar was tracking it, how long each room was
-  occupied in the window, and a list of every move from room to room. Tap one to replay it.
-
-| The whole dashboard | Zones and radar coverage | The scrubber |
-|---|---|---|
-| <img src="../images/replay/overview.png" width="300"> | <img src="../images/replay/zones-and-radars.png" width="300"> | <img src="../images/replay/scrubber-detail.png" width="300"> |
-
-It's the quickest way I've found to answer "why did that light turn off?", spot a ghost
-target, or check that a zone edge is where I think it is.
-
 ## The pattern every room light uses
 
 > **PIR turns it on instantly. Radar keeps it on while you're still there. A sweep cleans up.**
@@ -111,55 +51,95 @@ target, or check that a zone edge is where I think it is.
 ```yaml
 - id: '1785400000003'
   alias: 'RMM: Kitchen presence light'
-  description: PIR instant-on (kitchen_motion, physically moved back to the kitchen
-    2026-07-25) + radar-zone hold. Created by Claude 2026-07-25.
+  description: 'Kitchen lights (light.kitchen_group). ON in the day window from any
+    kitchen sensor (kitchen PIR = the IKEA VALLHORN, re-paired 2026-11-20, RMM kitchen
+    zone) or the front door opening. OFF is checked every minute (reload-proof, so
+    the sweeper no longer handles the kitchen): never while any kitchen sensor is
+    on. the guest dates, 06:00-21:00 (guests): off only after the kitchen has been
+    quiet 20 min AND the whole house (all PIRs, RMM zones, radar moving targets, front
+    door) quiet 15 min. Otherwise: off 5 min after the kitchen goes quiet (2026-11-17:
+    long hold limited to the guest dates). Rewritten by Claude 2026-11-17 for the
+    guests (old config in ~/Documents/claude/ha-backups/kitchen-hold-20261117).'
   triggers:
   - trigger: state
     entity_id:
     - binary_sensor.kitchen_motion
+    - binary_sensor.rmm_default_kitchen_occupancy
     to: 'on'
     id: 'on'
   - trigger: state
-    entity_id: binary_sensor.rmm_default_kitchen_occupancy
+    entity_id: binary_sensor.front_door_open
     to: 'on'
     id: 'on'
-  - trigger: state
-    entity_id: binary_sensor.rmm_default_kitchen_occupancy
-    to: 'off'
-    for: 00:03:00
-    id: 'off'
+  - trigger: time_pattern
+    minutes: /1
+    id: check
   conditions:
   - alias: Auto-stay is off (party mode suspends this)
     condition: state
     entity_id: input_boolean.auto_stay
     state: 'off'
   actions:
+  - variables:
+      kitchen_sensors:
+      - binary_sensor.kitchen_motion
+      - binary_sensor.rmm_default_kitchen_occupancy
+      - binary_sensor.front_door_open
+      house_sensors:
+      - binary_sensor.kitchen_motion
+      - binary_sensor.rmm_default_kitchen_occupancy
+      - binary_sensor.front_door_open
+      - binary_sensor.rmm_default_lounge_occupancy
+      - binary_sensor.rmm_default_office_occupancy
+      - binary_sensor.rmm_default_wardrobe_occupancy
+      - binary_sensor.rmm_default_bathroom_occupancy
+      - binary_sensor.rmm_default_bedroom_occupancy
+      - binary_sensor.rmm_default_sofa_occupancy
+      - binary_sensor.rmm_default_bed_occupancy
+      - binary_sensor.bathroom_occupancy_sonoff_snzb_06p
+      - binary_sensor.bedroom_motion
+      - binary_sensor.wardrobe_motion_occupancy
+      - binary_sensor.club_apollo_r_pro_1_ld2450_moving_target
+      - binary_sensor.ld2450_tracker_moving_target
+      - binary_sensor.ld2450_tracker_2_moving_target
   - choose:
     - conditions:
       - condition: trigger
         id: 'on'
-      - condition: template
+      - alias: Day window
+        condition: template
         value_template: '{% set d = now().weekday() %}{% set t = now().hour*60 + now().minute
           %}{{ not ((d in [6,0,1,2,3] and t >= 21*60) or (d in [0,1,2,3,4] and t <
           7*60) or (d in [4,5] and t >= 23*60) or (d in [5,6] and t < 9*60)) }}'
       sequence:
       - action: light.turn_on
-        data: {}
         target:
           entity_id: light.kitchen_group
+        data: {}
     - conditions:
       - condition: trigger
-        id: 'off'
+        id: check
       - condition: state
-        entity_id: binary_sensor.kitchen_motion
-        state: 'off'
+        entity_id: light.kitchen_group
+        state: 'on'
+      - alias: Kitchen (and, the guest dates by day, the house) quiet long enough
+        condition: template
+        value_template: '{% set ns = namespace(q=86400) %}{% for s in expand(kitchen_sensors)
+          %}{% if s.state == ''on'' %}{% set ns.q = 0 %}{% else %}{% set ns.q = [ns.q,
+          (now() - s.last_changed).total_seconds()] | min %}{% endif %}{% endfor %}{%
+          set kq = ns.q %}{% set ns = namespace(q=86400) %}{% for s in expand(house_sensors)
+          %}{% if s.state == ''on'' %}{% set ns.q = 0 %}{% else %}{% set ns.q = [ns.q,
+          (now() - s.last_changed).total_seconds()] | min %}{% endif %}{% endfor %}{%
+          set hq = ns.q %}{% set long = is_state('input_boolean.guests_staying','on')
+          and 6 <= now().hour < 21 %}{{ (kq > 1200 and hq > 900) if long else (kq
+          > 300) }}'
       sequence:
       - action: light.turn_off
         target:
-          entity_id:
-          - light.kitchen_group
+          entity_id: light.kitchen_group
         data: {}
-  mode: restart
+  mode: queued
+  max: 5
 ```
 
 The **night path** is the same idea at 2 am. The bathroom opens off the bedroom and into the
@@ -173,24 +153,27 @@ later. That's the walk in the animation above.
 ```yaml
 - id: '1785400000002'
   alias: 'RMM: Night path to bathroom'
-  description: Getting up at night lights a dim kitchen->wardrobe->bathroom path;
-    back in bed/sofa 2 min (or path empty 4 min) turns it off. Created by Claude 2026-07-25.
+  description: 'Getting up at night: wardrobe LED + bathroom mirror LED only. Starts
+    on the bathroom PIR, or on the office radar zone / office+wardrobe PIRs when the
+    kitchen radar saw someone arrive in the last 2 min (a walk from the sofa; a parked
+    ghost has an old last_changed and can''t pass). No kitchen triggers or kitchen
+    lights: it must never wake anyone on the couch.
+    2026-11-22: wardrobe LED swapped for the light.wardrobes group, plus
+    the Hue Flux strip and kitchen console candles (Bae''s request). Off when back
+    in bed/sofa 2 min or office/wardrobe/bathroom empty 4 min. Created by Claude 2026-07-25.
+    2026-11-07: the wardrobe PIR trigger pointed at binary_sensor.bathroom_motion,
+    which no longer exists; now binary_sensor.wardrobe_motion_occupancy.'
   triggers:
-  - trigger: state
-    entity_id: binary_sensor.kitchen_motion
-    to: 'on'
-    id: path
   - trigger: state
     entity_id: binary_sensor.bathroom_occupancy_sonoff_snzb_06p
     to: 'on'
     id: path
   - trigger: state
     entity_id:
-    - binary_sensor.rmm_default_kitchen_occupancy
-    - binary_sensor.rmm_default_wardrobe_occupancy
-    - binary_sensor.rmm_default_bathroom_occupancy
+    - binary_sensor.rmm_default_office_occupancy
+    - binary_sensor.wardrobe_motion_occupancy
     to: 'on'
-    id: path
+    id: via_kitchen
   - trigger: state
     entity_id:
     - binary_sensor.rmm_default_bed_occupancy
@@ -200,9 +183,10 @@ later. That's the walk in the animation above.
     id: return
   - trigger: state
     entity_id:
-    - binary_sensor.rmm_default_kitchen_occupancy
+    - binary_sensor.rmm_default_office_occupancy
     - binary_sensor.rmm_default_wardrobe_occupancy
     - binary_sensor.rmm_default_bathroom_occupancy
+    - binary_sensor.bathroom_occupancy_sonoff_snzb_06p
     to: 'off'
     for: 00:04:00
     id: away
@@ -220,26 +204,32 @@ later. That's the walk in the animation above.
     - conditions:
       - condition: trigger
         id: path
+      - alias: Washer guard - while the washer runs it shakes the bathroom mmWave, so
+          only count it if someone also moved in the bedroom/wardrobe in the last 2 min
+        condition: template
+        value_template: >-
+          {% if not is_state('binary_sensor.samsung_washer_da_wm_tp2_20_common_running','on') %}true{% else %}
+          {%- set ns = namespace(ok=false) -%}
+          {%- for e in ['binary_sensor.bedroom_motion','binary_sensor.wardrobe_motion_occupancy','binary_sensor.rmm_default_bedroom_occupancy','binary_sensor.rmm_default_bed_occupancy'] -%}
+          {%- set s = states[e] -%}
+          {%- if s is not none and (s.state == 'on' or (now() - s.last_changed).total_seconds() < 120) -%}{%- set ns.ok = true -%}{%- endif -%}
+          {%- endfor -%}{{ ns.ok }}{% endif %}
       sequence:
       - action: light.turn_on
         target:
-          entity_id: light.kitchen
-        data:
-          brightness_pct: 25
-      - action: light.turn_on
-        target:
           entity_id:
-          - light.wardrobe
-      - action: light.turn_on
+          - light.wardrobes
+          - light.kitchen_console_candles
         data:
           brightness_pct: 40
+        continue_on_error: true
+      - alias: Flux strip much dimmer than the rest (Bae 2026-11-25)
+        action: light.turn_on
         target:
-          entity_id: light.send_nudes
-      - action: light.turn_on
-        metadata: {}
-        target:
-          entity_id: light.wardrobes
-        data: {}
+          entity_id: light.home_hue_flux_strip_light_1
+        data:
+          brightness_pct: 5
+        continue_on_error: true
       - alias: WiZ mirror LED last, and only if reachable (pywizlight errors abort
           the run)
         if:
@@ -248,10 +238,46 @@ later. That's the walk in the animation above.
             ''unknown''] }}'
         then:
         - action: light.turn_on
-          metadata: {}
-          data: {}
           target:
             entity_id: light.bathroom_mirror_led
+          data: {}
+          continue_on_error: true
+    - conditions:
+      - condition: trigger
+        id: via_kitchen
+      - alias: Someone walked through the kitchen in the last 2 min (not a ghost parked
+          there)
+        condition: template
+        value_template: '{% set k = states.binary_sensor.rmm_default_kitchen_occupancy
+          %}{{ k is not none and (k.state == ''on'' or k.state == ''off'') and (now()
+          - k.last_changed).total_seconds() < 120 }}'
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id:
+          - light.wardrobes
+          - light.kitchen_console_candles
+        data:
+          brightness_pct: 40
+        continue_on_error: true
+      - alias: Flux strip much dimmer than the rest (Bae 2026-11-25)
+        action: light.turn_on
+        target:
+          entity_id: light.home_hue_flux_strip_light_1
+        data:
+          brightness_pct: 5
+        continue_on_error: true
+      - alias: WiZ mirror LED last, and only if reachable (pywizlight errors abort
+          the run)
+        if:
+        - condition: template
+          value_template: '{{ states(''light.bathroom_mirror_led'') not in [''unavailable'',
+            ''unknown''] }}'
+        then:
+        - action: light.turn_on
+          target:
+            entity_id: light.bathroom_mirror_led
+          data: {}
           continue_on_error: true
     - conditions:
       - condition: or
@@ -261,7 +287,7 @@ later. That's the walk in the animation above.
         - condition: trigger
           id: away
       - condition: state
-        entity_id: binary_sensor.rmm_default_kitchen_occupancy
+        entity_id: binary_sensor.rmm_default_office_occupancy
         state: 'off'
       - condition: state
         entity_id: binary_sensor.rmm_default_wardrobe_occupancy
@@ -269,14 +295,19 @@ later. That's the walk in the animation above.
       - condition: state
         entity_id: binary_sensor.rmm_default_bathroom_occupancy
         state: 'off'
+      - alias: Bathroom PIR quiet too (2026-11-22, so a dead bedroom radar can't strand
+          or cut the path lights); ignored while the washer runs, which shakes it
+        condition: template
+        value_template: '{{ not is_state(''binary_sensor.bathroom_occupancy_sonoff_snzb_06p'',''on'')
+          or is_state(''binary_sensor.samsung_washer_da_wm_tp2_20_common_running'',''on'') }}'
       sequence:
       - action: light.turn_off
         target:
           entity_id:
-          - light.kitchen
-          - light.wardrobe
-          - light.send_nudes
-        data: {}
+          - light.wardrobes
+          - light.home_hue_flux_strip_light_1
+          - light.kitchen_console_candles
+        continue_on_error: true
       - alias: WiZ mirror LED last, and only if reachable
         if:
         - condition: template
@@ -286,7 +317,6 @@ later. That's the walk in the animation above.
         - action: light.turn_off
           target:
             entity_id: light.bathroom_mirror_led
-          data: {}
           continue_on_error: true
   mode: restart
 ```
@@ -337,6 +367,10 @@ also feeds the "fell asleep" detection that turns everything off.
     condition: state
     entity_id: input_boolean.auto_stay
     state: 'off'
+  - alias: 'Bae is home (2026-11-03: never while Bae is away)'
+    condition: state
+    entity_id: binary_sensor.bae_home
+    state: 'on'
   - condition: template
     value_template: '{% set d = now().weekday() %}{% set t = now().hour*60 + now().minute
       %}{{ (d in [6,0,1,2,3] and t >= 21*60) or (d in [0,1,2,3,4] and t < 7*60) or
@@ -467,7 +501,10 @@ every 5 minutes turns off any presence light whose zone has been empty past its 
     hold Mon-Fri 08:00-18:00) and requires the desk PIR to be off. Sofa presence now
     comes from binary_sensor.sofa_occupied_held (RMM sofa, held while the LD2412 still
     sees someone after RMM loses a still person), so sitting still no longer turns
-    the couch lights off. Changed by Claude 2026-10-04.'
+    the couch lights off. Changed by Claude 2026-10-04. Kitchen branch now clears
+    the whole kitchen group (LED + floor) and treats an unavailable PIR as no motion.
+    Changed by Claude 2026-10-25. 2026-11-17: kitchen branch removed; RMM: Kitchen
+    presence light now checks its own off every minute.'
   triggers:
   - trigger: time_pattern
     minutes: /5
@@ -487,31 +524,10 @@ every 5 minutes turns off any presence light whose zone has been empty past its 
   - choose:
     - conditions:
       - condition: template
-        value_template: '{{ is_state(''binary_sensor.rmm_default_kitchen_occupancy'',''off'')
-          and (now() - states.binary_sensor.rmm_default_kitchen_occupancy.last_changed).total_seconds()
-          > 180 }}'
-      - condition: template
-        value_template: '{{ is_state(''light.kitchen'',''on'') or is_state(''light.kitchen_art'',''on'')
-          }}'
-      - condition: state
-        entity_id: binary_sensor.kitchen_motion
-        state: 'off'
-      sequence:
-      - action: light.turn_off
-        target:
-          entity_id:
-          - light.kitchen
-        data: {}
-  - choose:
-    - conditions:
-      - condition: template
         value_template: '{% set biz =  d in [0,1,2,3,4] and t >= 8*60 and t < 18*60  %}{%
           set lim = 1500 if biz else 300 %}{{ is_state(''binary_sensor.rmm_default_office_occupancy'',''off'')
           and (now() - states.binary_sensor.rmm_default_office_occupancy.last_changed).total_seconds()
           > lim }}'
-      - condition: state
-        entity_id: binary_sensor.office_motion
-        state: 'off'
       - condition: template
         value_template: '{{ is_state(''light.office_only'',''on'') }}'
       sequence:
@@ -587,8 +603,7 @@ every 5 minutes turns off any presence light whose zone has been empty past its 
           and (now() - states.binary_sensor.sofa_occupied_held.last_changed).total_seconds()
           > 180 }}'
       - condition: template
-        value_template: '{{ is_state(''light.couch'',''on'') or is_state(''light.club_accent_lights'',''on'')
-          }}'
+        value_template: '{{ is_state(''light.couch'',''on'') }}'
       - condition: state
         entity_id: binary_sensor.rmm_default_lounge_occupancy
         state: 'off'
@@ -597,7 +612,6 @@ every 5 minutes turns off any presence light whose zone has been empty past its 
         target:
           entity_id:
           - light.couch
-          - light.club_accent_lights
   mode: single
 ```
 
@@ -901,43 +915,6 @@ when it sees a physically impossible target, retries once, and only then asks me
 </details>
 
 
-## Wall switches, a pause button and quieter nights
-
-Not everyone who stays here wants a flat that thinks for them, so the smart bits now step aside cleanly.
-
-**The wall switches bring their lamps along.** Three Clipsal (Wiser) switches also drive the smart lamps
-around them: the bathroom ceiling switch takes the WiZ mirror light, the kitchen switch takes the
-under-cupboard strip and the floor light, and the art-pendant dimmer in the Club takes six lamps (TV art,
-kitchen art, bar, console candles, a cupboard light). One rule covers all three: if anything in the group is
-on, a press turns the whole group off; if it's all off, a press turns it all on. The pendants dim but the
-lamps don't, so dimming only moves the pendants, until you dim right down below 10%: then the lamps switch
-off and the pendants glow on their own, and turning it back up brings back the ones that were on.
-
-The tricky part is telling a finger on the switch from Home Assistant switching the same light. A physical
-press reaches HA as a Zigbee report with a fresh context: no user, no parent, and not the context of any
-automation or script run. Time-triggered automations also have no parent, so the check compares the
-light's context against every automation's and script's current context, which is where HA records the
-run that caused a change. Motion lights, scenes and the apps therefore never drag the lamps along.
-See [`clipsal_switches.yaml`](../config/packages/clipsal_switches.yaml).
-
-**One pause button.** "Motion lights" on the remote and on both Nest Hubs flips
-`input_boolean.light_automations`. Off now means off until someone turns it back on (it used to time out
-after 12 hours), and it also stands down the time-of-day scenes, the morning routine, the bathroom briefing
-and the work alarms, and silences an alarm that's ringing.
-
-**Time-of-day scenes that never switch anything on.** While I'm away, the 7 am, 6 pm and 9 pm looks
-(Santorini, Disturbia 2, then the Night scene) only recolour lights that are already on. With the motion
-lights paused, even that stops: nothing changes unless someone presses something.
-Hue can't recall a scene on part of a room, so the script recalls it with an 8-second fade and immediately
-switches back off the Hue lights that were off; they barely glow. See
-[`paused_lights_schedule.yaml`](../config/packages/paused_lights_schedule.yaml).
-
-**A night path that leaves the sofa alone.** The path to the bathroom used to start on kitchen motion and
-light the kitchen, which is no good with someone asleep on the sofa. It now starts on the bathroom PIR, or
-on the office radar zone and office/wardrobe PIRs only if the kitchen radar saw someone arrive in the last
-two minutes. A ghost parked in the kitchen has an old `last_changed`, so it can't pass. Only the wardrobe
-strip and the bathroom mirror come on.
-
 ## "Am I home?": GPS and Bluetooth must agree
 
 The house only treats me as *away* when the phone's GPS says I've left **and** the
@@ -954,17 +931,18 @@ template:
       # off = the Companion app positively says away AND Bermuda BLE does not say home.
       # delay_off swallows brief Bermuda reload blips. Used by every away/home
       # automation instead of person.bae. Added by Claude 2026-09-13.
+      # 2026-11-22: BLE side is now the Pixel 10a's own beacon (Razr retired).
       - name: Bae home
         unique_id: bae_home_combined
         device_class: presence
         delay_off: "00:00:30"
         state: >-
-          {%- set gps = states('device_tracker.motorola_razr_50') -%}
-          {%- set ble = states('device_tracker.bermuda_razr_bermuda_tracker') -%}
+          {%- set gps = states('device_tracker.pixel_10a') -%}
+          {%- set ble = states('device_tracker.bermuda_pixel_10a_bermuda_tracker') -%}
           {{ not (gps not in ['home', 'unknown', 'unavailable'] and ble != 'home') }}
         attributes:
-          companion_app: "{{ states('device_tracker.motorola_razr_50') }}"
-          bermuda_ble: "{{ states('device_tracker.bermuda_razr_bermuda_tracker') }}"
+          companion_app: "{{ states('device_tracker.pixel_10a') }}"
+          bermuda_ble: "{{ states('device_tracker.bermuda_pixel_10a_bermuda_tracker') }}"
 ```
 
 On top of that, **away mode** (`input_boolean.away_mode`) only arms when the radars have
@@ -991,6 +969,10 @@ harmless and a stuck away mode is not.
     to: 'off'
     for: 00:05:00
   conditions:
+  - condition: state
+    entity_id: input_boolean.guests_staying
+    state: 'off'
+    alias: Guest mode (Bae away) is off
   - alias: Auto-stay is off (party mode suspends this)
     condition: state
     entity_id: input_boolean.auto_stay
@@ -1004,7 +986,7 @@ harmless and a stuck away mode is not.
   - condition: not
     conditions:
     - condition: state
-      entity_id: device_tracker.motorola_razr_50
+      entity_id: device_tracker.pixel_10a
       state: home
   - condition: template
     value_template: '{{ expand(''binary_sensor.rmm_default_lounge_occupancy'',''binary_sensor.rmm_default_sofa_occupancy'',''binary_sensor.rmm_default_bed_occupancy'',''binary_sensor.rmm_default_bedroom_occupancy'',''binary_sensor.rmm_default_kitchen_occupancy'',''binary_sensor.rmm_default_office_occupancy'',''binary_sensor.rmm_default_bathroom_occupancy'',''binary_sensor.rmm_default_wardrobe_occupancy'')
